@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Buzón — Personería I.E.E.N.S.S.M</title>
+  <link rel="stylesheet" href="css/style-per.css">
+</head>
+<body>
+
+<nav>
+  <div class="nav-inner">
+    <a class="nav-logo" href="index.html">Personería</a>
+    <ul class="nav-links">
+      <li><a href="../index.html" style="font-size:11px;opacity:0.6;">← Gobierno Escolar</a></li>
+      <li><a href="index.html">Inicio</a></li>
+      <li><a href="informate.html">Infórmate</a></li>
+      <li><a href="buzon.html" class="nav-buzon">Buzón ↗</a></li>
+    </ul>
+  </div>
+</nav>
+
+<div class="page-wrapper" style="padding-top:3rem;">
+
+  <!-- IMAGEN PRINCIPAL BUZÓN -->
+  <div class="buzon-hero">
+    <img src="../assets/images/buzon-per.png" alt="Buzón de la personería"
+      onerror="this.style.display='none'">
+    <div class="buzon-hero-overlay">
+      <div class="buzon-hero-text">
+        <h2>Buzón de sugerencias</h2>
+        <p>Tu espacio para expresarte con confianza</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="buzon-wrapper">
+
+    <!-- LADO IZQUIERDO -->
+    <div class="buzon-info">
+
+      <!-- Logos redondos -->
+      <div class="buzon-mascotas">
+        <div class="mascota-card">
+          <img src="../assets/images/logo-per.png" alt="Logo Personería"
+            onerror="this.style.display='none'">
+        </div>
+        <div class="mascota-card">
+          <img src="../assets/images/logo-cont.png" alt="Logo Contraloría"
+            onerror="this.style.display='none'">
+        </div>
+      </div>
+
+      <h2>Cuéntanos<br>lo que sientes</h2>
+      <p>
+        Este es tu espacio. Puedes enviarnos sugerencias, dudas, propuestas o
+        simplemente contarnos algo. Todos los mensajes llegan directamente a
+        la personera y son leídos con atención.
+      </p>
+
+      <div class="buzon-features">
+        <div class="buzon-feature">
+          <div class="buzon-feature-icon">🔒</div>
+          <div class="buzon-feature-text">Puedes escribir de forma anónima, tú decides</div>
+        </div>
+        <div class="buzon-feature">
+          <div class="buzon-feature-icon">📬</div>
+          <div class="buzon-feature-text">Tu mensaje llega directo a la personera</div>
+        </div>
+        <div class="buzon-feature">
+          <div class="buzon-feature-icon">💛</div>
+          <div class="buzon-feature-text">Cada mensaje es leído y tenido en cuenta</div>
+        </div>
+        <div class="buzon-feature">
+          <div class="buzon-feature-icon">🤝</div>
+          <div class="buzon-feature-text">Juntos construimos una mejor comunidad</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- FORMULARIO -->
+    <div>
+      <div class="buzon-form-card">
+        <form id="buzon-form" method="POST">
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label" for="nombre">Nombre (opcional)</label>
+              <input class="form-input" type="text" id="nombre" name="nombre" placeholder="Anónimo">
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="grado">Grado (opcional)</label>
+              <input class="form-input" type="text" id="grado" name="grado" placeholder="Ej: 9°A">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="edad">Edad (opcional)</label>
+            <input class="form-input" type="number" id="edad" name="edad" placeholder="Tu edad" min="5" max="25">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="tipo">¿Qué quieres enviar?</label>
+            <select class="form-select" id="tipo" name="tipo" required>
+              <option value="" disabled selected>Selecciona una opción</option>
+              <option value="duda">Duda o inquietud</option>
+              <option value="propuesta">Propuesta o sugerencia</option>
+              <option value="escuchame">Escúchame — necesito un consejo</option>
+            </select>
+          </div>
+
+          <!-- Se muestra solo si es propuesta -->
+          <div class="form-group" id="categoria-group" style="display:none;">
+            <label class="form-label" for="categoria">Categoría de la propuesta</label>
+            <select class="form-select" id="categoria" name="categoria">
+              <option value="" disabled selected>Selecciona una categoría</option>
+              <option value="academico">Académico</option>
+              <option value="social">Social</option>
+              <option value="cultural_deportivo">Cultural y deportivo</option>
+              <option value="ambiental">Ambiental</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="mensaje">Tu mensaje</label>
+            <textarea class="form-textarea" id="mensaje" name="mensaje" rows="5"
+              placeholder="Escríbenos con confianza..." required></textarea>
+          </div>
+
+          <button type="submit" class="btn-enviar" id="btn-enviar">
+            Enviar mensaje
+          </button>
+
+          <p id="form-feedback" style="text-align:center;margin-top:12px;font-size:13px;display:none;"></p>
+
+        </form>
+      </div>
+
+      <!-- ESCÚCHAME - sección especial -->
+      <div class="escuchame-section" id="escuchame">
+        <h3>¿Necesitas un consejo?</h3>
+        <p>
+          A veces solo necesitas que alguien te escuche. Si estás pasando por algo difícil,
+          puedes usar el buzón arriba seleccionando "Escúchame" y te respondo con toda la
+          atención y cariño que mereces. No estás solo/a.
+        </p>
+        <p style="font-size:12px;color:var(--texto-3);">
+          Los mensajes de "Escúchame" son tratados con total privacidad.
+        </p>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<footer>
+  <strong>Personería Estudiantil 2026</strong> · I.E.E.N.S.S.M<br>
+  <span style="margin-top:4px;display:block;" data-per-slogan></span>
+  <a data-whatsapp href="#" target="_blank" style="font-size:12px; color:#25D366; font-weight:600; text-decoration:none; margin-top:4px; display:inline-block;"></a>
+</footer>
+
+<script type="module" src="js/app-per.js"></script>
+<script>
+  // Mostrar/ocultar categoría según tipo
+  document.getElementById('tipo').addEventListener('change', function() {
+    const catGroup = document.getElementById('categoria-group');
+    catGroup.style.display = this.value === 'propuesta' ? 'block' : 'none';
+
+    // Si es "escúchame", cambiar placeholder del textarea
+    const textarea = document.getElementById('mensaje');
+    if (this.value === 'escuchame') {
+      textarea.placeholder = 'Cuéntame lo que está pasando, aquí te escucho con todo el corazón 💛';
+    } else if (this.value === 'duda') {
+      textarea.placeholder = '¿Qué duda o inquietud tienes?';
+    } else {
+      textarea.placeholder = '¿Cuál es tu propuesta o sugerencia?';
+    }
+  });
+
+  // Submit con fetch
+  document.getElementById('buzon-form').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const btn = document.getElementById('btn-enviar');
+    const feedback = document.getElementById('form-feedback');
+    btn.textContent = 'Enviando...';
+    btn.disabled = true;
+
+    try {
+      if (!this.action || this.action === window.location.href) {
+        feedback.textContent = '⚠ El buzón estará disponible muy pronto.';
+        feedback.style.color = 'var(--rosa-oscuro)';
+        feedback.style.display = 'block';
+        btn.textContent = 'Enviar mensaje';
+        btn.disabled = false;
+        return;
+      }
+      const res = await fetch(this.action, {
+        method: 'POST',
+        body: new FormData(this),
+        headers: { 'Accept': 'application/json' }
+      });
+      if (res.ok) {
+        feedback.textContent = '✓ ¡Mensaje enviado! Gracias por escribirme 💛';
+        feedback.style.color = '#065F46';
+        feedback.style.display = 'block';
+        this.reset();
+        document.getElementById('categoria-group').style.display = 'none';
+      } else {
+        throw new Error();
+      }
+    } catch {
+      feedback.textContent = '⚠ Hubo un error. Intenta de nuevo más tarde.';
+      feedback.style.color = 'var(--rosa-oscuro)';
+      feedback.style.display = 'block';
+    } finally {
+      btn.textContent = 'Enviar mensaje';
+      btn.disabled = false;
+    }
+  });
+</script>
+
+</body>
+</html>

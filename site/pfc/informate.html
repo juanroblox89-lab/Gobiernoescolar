@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Infórmate — PFC I.E.E.N.S.S.M</title>
+  <link rel="stylesheet" href="css/style-pfc.css">
+</head>
+<body>
+
+<nav>
+  <div class="nav-inner">
+    <a class="nav-logo" href="index.html">PFC <span>·</span> NSSM</a>
+    <ul class="nav-links">
+      <li><a href="../index.html" style="font-size:11px;opacity:0.45;">← Gobierno Escolar</a></li>
+      <li><a href="index.html">Inicio</a></li>
+      <li><a href="informate.html">Infórmate</a></li>
+      <li><a href="buzon.html" class="nav-buzon">Buzón ↗</a></li>
+    </ul>
+  </div>
+</nav>
+
+<!-- HERO compacto -->
+<section class="hero" style="min-height:auto;">
+  <div class="hero-inner" style="grid-template-columns:1fr;padding:2.5rem 2rem;gap:0;">
+    <div class="hero-left">
+      <div class="hero-tag"><span class="hero-tag-dot"></span>Sección informativa</div>
+      <h1 style="font-size:clamp(2rem,4vw,3rem);">Infórmate</h1>
+      <p class="hero-slogan" style="font-size:17px;margin-bottom:0;">Todo lo que necesitas saber del PFC en un solo lugar</p>
+    </div>
+  </div>
+</section>
+
+<div class="page-wrapper">
+
+  <!-- NOTICIAS -->
+  <section id="noticias" style="margin-bottom:3.5rem;">
+    <div class="section-heading">
+      <div class="section-eyebrow">Novedades</div>
+      <h2>Noticias</h2>
+    </div>
+    <div class="noticias-grid" id="noticias-container"></div>
+  </section>
+
+  <!-- AVISOS -->
+  <section id="avisos" style="margin-bottom:3.5rem;">
+    <div class="section-heading">
+      <div class="section-eyebrow">Información importante</div>
+      <h2>Avisos</h2>
+    </div>
+    <div class="avisos-lista" id="avisos-container"></div>
+  </section>
+
+  <!-- CALENDARIO -->
+  <section id="calendario" style="margin-bottom:3.5rem;">
+    <div class="section-heading">
+      <div class="section-eyebrow">Fechas clave</div>
+      <h2>Programación académica</h2>
+    </div>
+    <div class="calendario-card">
+      <div class="cal-header">
+        <button class="cal-nav" id="cal-prev">‹</button>
+        <span class="cal-mes" id="cal-mes-label"></span>
+        <button class="cal-nav" id="cal-next">›</button>
+      </div>
+      <div class="cal-grid-header">
+        <span>Dom</span><span>Lun</span><span>Mar</span>
+        <span>Mié</span><span>Jue</span><span>Vie</span><span>Sáb</span>
+      </div>
+      <div class="cal-grid" id="cal-grid"></div>
+      <div class="eventos-lista" id="eventos-lista"></div>
+    </div>
+  </section>
+
+  <!-- ACTIVIDADES -->
+  <section id="actividades">
+    <div class="section-heading">
+      <div class="section-eyebrow">Registro de experiencias</div>
+      <h2>Actividades realizadas</h2>
+    </div>
+    <div class="noticias-grid" id="actividades-container"></div>
+  </section>
+
+</div>
+
+<footer>
+  <strong>Representante PFC 2026</strong> · I.E.E.N.S.S.M<br>
+  <span style="margin-top:4px;display:block;font-size:12px;" data-pfc-slogan></span>
+  <a data-whatsapp href="#" target="_blank" style="font-size:12px; color:#25D366; font-weight:600; text-decoration:none; margin-top:4px; display:inline-block;"></a>
+</footer>
+
+<script type="module" src="js/app-pfc.js"></script>
+</body>
+</html>

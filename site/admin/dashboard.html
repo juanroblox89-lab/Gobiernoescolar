@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard - Gobierno Escolar</title>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/admin.css">
+</head>
+<body>
+  <div class="dashboard-layout">
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <h2>Panel Admin</h2>
+        <p style="font-size:0.8rem; color:var(--text-muted);" id="user-email">Cargando...</p>
+      </div>
+      <nav class="sidebar-nav">
+        <button class="nav-item active" data-target="noticias">Noticias</button>
+        <button class="nav-item" data-target="calendario">Calendario</button>
+        <button class="nav-item" data-target="recursos">Documentos/Links</button>
+        <button class="nav-item" data-target="semaforo">🚦 Semáforo</button>
+      </nav>
+      <div class="sidebar-footer">
+        <button class="btn-logout" id="logout-btn">
+          <span>Salir</span>
+        </button>
+      </div>
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <main class="main-content">
+      
+      <!-- SECCIÓN NOTICIAS -->
+      <section id="noticias-section">
+        <div class="page-header">
+          <h1 class="page-title">Noticias publicadas</h1>
+          <button class="btn-add" id="btn-add-noticia">+ Nueva Noticia</button>
+        </div>
+        <div id="noticias-list">
+          <p>Cargando noticias...</p>
+        </div>
+      </section>
+
+      <!-- SECCIÓN CALENDARIO -->
+      <section id="calendario-section" class="hidden">
+        <div class="page-header">
+          <h1 class="page-title">Eventos del calendario</h1>
+          <button class="btn-add" id="btn-add-evento">+ Nuevo Evento</button>
+        </div>
+        <div id="eventos-list">
+          <p>Cargando eventos...</p>
+        </div>
+      </section>
+
+      <!-- SECCIÓN RECURSOS (Documentos/Informes) -->
+      <section id="recursos-section" class="hidden">
+        <div class="page-header">
+          <h1 class="page-title">Documentos e Informes</h1>
+        </div>
+        <div class="dashboard-info-box">
+          Haz clic en el botón ✏️ para agregar un archivo PDF o pegar un enlace externo a estos documentos.
+        </div>
+        <div id="recursos-list">
+          <p>Cargando recursos...</p>
+        </div>
+      </section>
+
+      <!-- SECCIÓN SEMAFORO (solo Contraloría) -->
+      <section id="semaforo-section" class="hidden">
+        <!-- Contenido generado dinámicamente por renderSemaforoAdmin() -->
+      </section>
+
+    </main>
+  </div>
+
+  <!-- MODAL NOTICIA -->
+  <div class="modal-overlay" id="modal-noticia">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 id="modal-noticia-title">Crear Noticia</h2>
+        <button class="btn-close" id="close-modal-noticia">&times;</button>
+      </div>
+      <form id="form-noticia">
+        <input type="hidden" id="noticia-id">
+        <div class="form-group">
+          <label for="noticia-titulo">Título</label>
+          <input type="text" id="noticia-titulo" required>
+        </div>
+        <div class="form-group">
+          <label for="noticia-fecha">Fecha</label>
+          <input type="date" id="noticia-fecha" required>
+        </div>
+        <div class="form-group">
+          <label for="noticia-categoria">Categoría</label>
+          <select id="noticia-categoria" required>
+            <option value="anuncio">Anuncio</option>
+            <option value="logro">Logro</option>
+            <option value="evento">Evento</option>
+            <option value="info">Información</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="noticia-foto-file">Subir Foto (opcional)</label>
+          <input type="file" id="noticia-foto-file" accept="image/*">
+          <input type="hidden" id="noticia-foto">
+          <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 4px;" id="noticia-foto-name"></p>
+        </div>
+        <div class="form-group">
+          <label for="noticia-resumen">Resumen</label>
+          <textarea id="noticia-resumen" rows="4" required></textarea>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn-secondary" id="cancel-noticia">Cancelar</button>
+          <button type="submit" class="btn-primary" style="width:auto; padding:0.75rem 1.5rem;">Guardar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL EVENTO -->
+  <div class="modal-overlay" id="modal-evento">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 id="modal-evento-title">Crear Evento</h2>
+        <button class="btn-close" id="close-modal-evento">&times;</button>
+      </div>
+      <form id="form-evento">
+        <input type="hidden" id="evento-id">
+        <div class="form-group">
+          <label for="evento-titulo">Título del Evento</label>
+          <input type="text" id="evento-titulo" required>
+        </div>
+        <div class="form-group">
+          <label for="evento-fecha">Fecha</label>
+          <input type="date" id="evento-fecha" required>
+        </div>
+        <div class="form-group">
+          <label for="evento-desc">Descripción</label>
+          <textarea id="evento-desc" rows="3" required></textarea>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn-secondary" id="cancel-evento">Cancelar</button>
+          <button type="submit" class="btn-primary" style="width:auto; padding:0.75rem 1.5rem;">Guardar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL RECURSO -->
+  <div class="modal-overlay" id="modal-recurso">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 class="modal-title" id="recurso-modal-title">Actualizar Link/PDF</h2>
+        <button class="btn-close" id="btn-close-recurso">&times;</button>
+      </div>
+      <form id="form-recurso">
+        <input type="hidden" id="recurso-id">
+        <div class="form-group">
+          <label>URL o Enlace externo (Opcional si subes archivo)</label>
+          <input type="url" id="recurso-url" placeholder="https://drive.google.com/...">
+        </div>
+        <div class="form-group">
+          <label>O sube un Archivo PDF (Reemplazará la URL)</label>
+          <input type="file" id="recurso-file" accept="application/pdf">
+        </div>
+        <button type="submit" class="btn-submit" id="btn-save-recurso">Guardar Cambios</button>
+      </form>
+    </div>
+  </div>
+
+  <script type="module" src="js/admin-dashboard.js"></script>
+</body>
+</html>

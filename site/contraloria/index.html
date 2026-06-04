@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Contraloría Estudiantil — Susana Restrepo</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<nav>
+  <div class="nav-inner">
+    <a class="nav-logo" href="index.html">Contraloría</a>
+    <ul class="nav-links">
+      <li><a href="../index.html" style="font-size:11px;opacity:0.6;">← Gobierno Escolar</a></li><li><a href="index.html">Inicio</a></li>
+      <li><a href="propuestas.html">Propuestas</a></li>
+      <li><a href="informes.html">Informes</a></li>
+      <li><a href="buzon.html" class="nav-buzon">Buzón ↗</a></li>
+    </ul>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-pattern"></div>
+  <div class="hero-inner">
+    <div class="hero-tag">
+      <span class="hero-tag-dot"></span>
+      Contraloría Estudiantil
+    </div>
+    <h1 id="hero-nombre">Cargando...</h1>
+    <p class="hero-slogan" id="hero-slogan"></p>
+    <div class="hero-stats">
+      <div>
+        <span class="hero-stat-num" id="stat-propuestas">—</span>
+        <span class="hero-stat-label">Propuestas</span>
+      </div>
+      <div>
+        <span class="hero-stat-num" id="stat-cumplidas">—</span>
+        <span class="hero-stat-label">Cumplidas</span>
+      </div>
+      <div>
+        <span class="hero-stat-num" id="stat-equipo">—</span>
+        <span class="hero-stat-label">Integrantes</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="page-wrapper">
+
+  <!-- SEMÁFORO (resumen) -->
+  <section style="margin-bottom: 3.5rem;">
+    <div class="section-heading">
+      <div class="section-eyebrow">Estado actual</div>
+      <h2>Semáforo institucional</h2>
+    </div>
+    <div class="semaforo-grid">
+      <div class="sem-col verde">
+        <div class="sem-header">
+          <div class="sem-dot-lg"></div>
+          <div class="sem-col-title">Está bien</div>
+        </div>
+        <ul class="sem-items-list" id="sem-verde"></ul>
+      </div>
+      <div class="sem-col amarillo">
+        <div class="sem-header">
+          <div class="sem-dot-lg"></div>
+          <div class="sem-col-title">Se puede mejorar</div>
+        </div>
+        <ul class="sem-items-list" id="sem-amarillo"></ul>
+      </div>
+      <div class="sem-col rojo-sem">
+        <div class="sem-header">
+          <div class="sem-dot-lg"></div>
+          <div class="sem-col-title">Necesita atención</div>
+        </div>
+        <ul class="sem-items-list" id="sem-rojo"></ul>
+      </div>
+    </div>
+    <p class="sem-fecha" id="sem-fecha"></p>
+
+    <!-- Editor semáforo -->
+    <div class="sem-edit-bar">
+      <button class="btn-edit-sem" id="sem-edit-btn">✏ Editar semáforo</button>
+      <span class="sem-feedback-ok" id="sem-feedback">✓ Guardado correctamente</span>
+    </div>
+    <div class="sem-edit-panel" id="sem-edit-panel">
+      <h4>Editar semáforo institucional</h4>
+      <p class="sem-edit-hint">Escribe un elemento por línea en cada columna. Los cambios se guardan en este dispositivo.</p>
+      <div class="sem-edit-grid">
+        <div class="sem-edit-col verde">
+          <label>Está bien</label>
+          <textarea id="edit-verde" placeholder="Un elemento por línea..."></textarea>
+        </div>
+        <div class="sem-edit-col amarillo">
+          <label>Se puede mejorar</label>
+          <textarea id="edit-amarillo" placeholder="Un elemento por línea..."></textarea>
+        </div>
+        <div class="sem-edit-col rojo-ed">
+          <label>Necesita atención</label>
+          <textarea id="edit-rojo" placeholder="Un elemento por línea..."></textarea>
+        </div>
+      </div>
+      <button class="btn-save-sem" id="sem-save-btn">Guardar cambios</button>
+    </div>
+  </section>
+
+  <!-- NOTICIAS -->
+  <section style="margin-bottom: 3.5rem;">
+    <div class="section-heading">
+      <div class="section-eyebrow">Novedades</div>
+      <h2>Noticias</h2>
+    </div>
+    <div class="noticias-grid" id="noticias-container"></div>
+  </section>
+
+  <!-- OBJETIVO -->
+  <section style="margin-bottom:3.5rem;">
+    <div style="background:var(--rojo-claro);border-radius:var(--radio-lg);padding:2rem;border:1px solid rgba(192,57,43,0.15);">
+      <div class="section-eyebrow">¿Para qué sirve esta página?</div>
+      <p style="font-size:15px;color:var(--texto-2);line-height:1.8;margin-top:0.5rem;">
+        Este espacio existe para que los estudiantes puedan opinar, informarse y ver de cerca todo lo que la contraloría hace por la institución. Puedes consultar las propuestas, leer los informes, ver el estado actual de la institución en el semáforo y enviar sugerencias o denuncias directamente.
+      </p>
+    </div>
+  </section>
+
+  <!-- PROPUESTAS DESTACADAS -->
+  <section style="margin-bottom: 3.5rem;">
+    <div class="section-heading" style="display:flex; align-items:flex-end; justify-content:space-between;">
+      <div>
+        <div class="section-eyebrow">Nuestro plan</div>
+        <h2>Propuestas</h2>
+      </div>
+      <a href="propuestas.html" style="font-size:13px; font-weight:600; color:var(--rojo); text-decoration:none;">Ver todas →</a>
+    </div>
+    <div class="props-grid" id="props-container"></div>
+  </section>
+
+  <!-- EQUIPO -->
+  <section style="margin-bottom: 3.5rem;">
+    <div class="section-heading">
+      <div class="section-eyebrow">Quiénes somos</div>
+      <h2>El equipo</h2>
+    </div>
+    <div class="equipo-grid" id="equipo-container"></div>
+  </section>
+
+</div>
+
+<footer>
+  <strong>Contraloría Estudiantil</strong> · Susana Restrepo Velásquez<br>
+  <span style="margin-top:4px; display:block;">"Un estudiante informado es un estudiante protegido"</span><br>
+  <a data-instagram href="#" target="_blank" style="font-size:12px; color:var(--rojo); text-decoration:none; margin-top:4px; display:inline-block;"></a>
+  <a data-whatsapp href="#" target="_blank" style="font-size:12px; color:#25D366; font-weight:600; text-decoration:none; margin-top:4px; display:inline-block; margin-left: 10px;"></a>
+</footer>
+
+<script type="module" src="js/app.js"></script>
+</body>
+</html>

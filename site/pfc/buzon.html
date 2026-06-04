@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Buzón — PFC I.E.E.N.S.S.M</title>
+  <link rel="stylesheet" href="css/style-pfc.css">
+</head>
+<body>
+
+<nav>
+  <div class="nav-inner">
+    <a class="nav-logo" href="index.html">PFC <span>·</span> NSSM</a>
+    <ul class="nav-links">
+      <li><a href="../index.html" style="font-size:11px;opacity:0.45;">← Gobierno Escolar</a></li>
+      <li><a href="index.html">Inicio</a></li>
+      <li><a href="informate.html">Infórmate</a></li>
+      <li><a href="buzon.html" class="nav-buzon">Buzón ↗</a></li>
+    </ul>
+  </div>
+</nav>
+
+<div class="page-wrapper" style="padding-top:3rem;">
+
+  <div class="buzon-wrapper">
+
+    <!-- IZQUIERDA -->
+    <div class="buzon-info">
+      <img src="../assets/images/logo-pfc.png" alt="Logo del Programa de Formación Complementaria"
+        style="width:72px;height:72px;border-radius:50%;object-fit:cover;margin-bottom:1.5rem;border:2px solid var(--rojo-borde);"
+        onerror="this.style.display='none'">
+      <h2>Buzón de participación</h2>
+      <p>
+        Este espacio es de todos y para todos. Aquí puedes enviar preguntas, ideas o comentarios directamente al representante. Participar no es solo opinar — es contribuir activamente a la construcción de un mejor proceso formativo.
+      </p>
+      <div class="buzon-features">
+        <div class="buzon-feature">
+          <div class="buzon-feature-icon">🔒</div>
+          <div class="buzon-feature-text">Tu nombre y semestre son opcionales</div>
+        </div>
+        <div class="buzon-feature">
+          <div class="buzon-feature-icon">📬</div>
+          <div class="buzon-feature-text">Tu mensaje llega directo al representante</div>
+        </div>
+        <div class="buzon-feature">
+          <div class="buzon-feature-icon">🤝</div>
+          <div class="buzon-feature-text">Cada aporte cuenta para mejorar el programa</div>
+        </div>
+      </div>
+      <div class="buzon-cierre">
+        "Este espacio es de todos y para todos. Participar no es solo opinar, es contribuir activamente a la construcción de un mejor proceso formativo."
+      </div>
+    </div>
+
+    <!-- FORMULARIO -->
+    <div class="buzon-form-card">
+      <form id="buzon-form" method="POST">
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="nombre">Nombre (opcional)</label>
+            <input class="form-input" type="text" id="nombre" name="nombre" placeholder="Anónimo">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="semestre">Semestre (opcional)</label>
+            <input class="form-input" type="text" id="semestre" name="semestre" placeholder="Ej: 3°">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="tipo">¿Qué quieres enviar?</label>
+          <select class="form-select" id="tipo" name="tipo" required>
+            <option value="" disabled selected>Selecciona una opción</option>
+            <option value="pregunta">Pregunta</option>
+            <option value="idea">Idea</option>
+            <option value="comentario">Comentario</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="mensaje">Tu mensaje</label>
+          <textarea class="form-textarea" id="mensaje" name="mensaje" rows="6"
+            placeholder="Escribe con confianza, este espacio es tuyo..." required></textarea>
+        </div>
+
+        <button type="submit" class="btn-enviar" id="btn-enviar">
+          Enviar mensaje
+        </button>
+
+        <p id="form-feedback" style="text-align:center;margin-top:12px;font-size:13px;display:none;"></p>
+
+      </form>
+    </div>
+
+  </div>
+</div>
+
+<footer>
+  <strong>Representante PFC 2026</strong> · I.E.E.N.S.S.M<br>
+  <span style="margin-top:4px;display:block;font-size:12px;" data-pfc-slogan></span>
+  <a data-whatsapp href="#" target="_blank" style="font-size:12px; color:#25D366; font-weight:600; text-decoration:none; margin-top:4px; display:inline-block;"></a>
+</footer>
+
+<script type="module" src="js/app-pfc.js"></script>
+<script>
+  document.getElementById('tipo').addEventListener('change', function() {
+    const textarea = document.getElementById('mensaje');
+    const placeholders = {
+      pregunta: '¿Qué pregunta tienes para el representante?',
+      idea: '¿Cuál es tu idea para mejorar el PFC?',
+      comentario: 'Escribe tu comentario aquí...'
+    };
+    textarea.placeholder = placeholders[this.value] || 'Escribe con confianza, este espacio es tuyo...';
+  });
+
+  document.getElementById('buzon-form').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const btn = document.getElementById('btn-enviar');
+    const feedback = document.getElementById('form-feedback');
+    btn.textContent = 'Enviando...';
+    btn.disabled = true;
+
+    if (!this.action || this.action === window.location.href) {
+      feedback.textContent = '⚠ El buzón estará disponible muy pronto.';
+      feedback.style.color = 'var(--rojo)';
+      feedback.style.display = 'block';
+      btn.textContent = 'Enviar mensaje';
+      btn.disabled = false;
+      return;
+    }
+
+    try {
+      const res = await fetch(this.action, {
+        method: 'POST',
+        body: new FormData(this),
+        headers: { 'Accept': 'application/json' }
+      });
+      if (res.ok) {
+        feedback.textContent = '✓ ¡Mensaje enviado! Gracias por participar.';
+        feedback.style.color = '#4ADE80';
+        feedback.style.display = 'block';
+        this.reset();
+      } else { throw new Error(); }
+    } catch {
+      feedback.textContent = '⚠ Hubo un error. Intenta de nuevo más tarde.';
+      feedback.style.color = 'var(--rojo)';
+      feedback.style.display = 'block';
+    } finally {
+      btn.textContent = 'Enviar mensaje';
+      btn.disabled = false;
+    }
+  });
+</script>
+
+</body>
+</html>
