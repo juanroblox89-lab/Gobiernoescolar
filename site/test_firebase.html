@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Diagnóstico de Firebase — Gobierno Escolar</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #f7f9fa;
+      color: #333;
+      padding: 2rem;
+      max-width: 800px;
+      margin: 0 auto;
+    }
+    .card {
+      background: white;
+      border-radius: 12px;
+      padding: 1.5rem;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+      margin-bottom: 1.5rem;
+      border: 1px solid #e1e8ed;
+    }
+    h1 { color: #1c1f23; margin-top: 0; }
+    .status-badge {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 50px;
+      font-size: 12px;
+      font-weight: bold;
+      text-transform: uppercase;
+    }
+    .success { background: #e2f9e8; color: #1e7e34; }
+    .warning { background: #fff3cd; color: #856404; }
+    .error { background: #f8d7da; color: #721c24; }
+    pre {
+      background: #272822;
+      color: #f8f8f2;
+      padding: 1rem;
+      border-radius: 8px;
+      overflow-x: auto;
+      font-family: monospace;
+      font-size: 13px;
+    }
+    .suggestion {
+      margin-top: 1rem;
+      padding: 1rem;
+      border-radius: 8px;
+      border-left: 4px solid;
+    }
+    .sug-error { background: #fdf2f2; border-color: #f05252; color: #9b1c1c; }
+    .sug-warn { background: #fefaf3; border-color: #f59e0b; color: #b45309; }
+    .btn {
+      background: #1a56db;
+      color: white;
+      padding: 10px 20px;
+      border-radius: 6px;
+      text-decoration: none;
+      font-weight: bold;
+      display: inline-block;
+      margin-top: 10px;
+      border: none;
+      cursor: pointer;
+    }
+    .btn:hover { background: #1a45a3; }
+  </style>
+</head>
+<body>
+
+  <div class="card">
+    <h1>🌱 Diagnóstico de Conexión Firebase</h1>
+    <p>Esta herramienta comprueba si la base de datos de Firestore está respondiendo correctamente a las consultas públicas de la web.</p>
+  </div>
+
+  <div id="results">
+    <p>Ejecutando pruebas de conexión...</p>
+  </div>
+
+  <script type="module">
+    import { db } from './js/firebase-config.js';
+    import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+
+    const resultsContainer = document.getElementById('results');
+
+    async function runDiagnostic() {
+      let html = '';
+
+      // Test 1: Config Check
+      html += `
+        <div class="card">
+          <h3>1. Configuración de Firebase</h3>
+          <p>Proyecto ID configurado: <strong>gobiernoescolar-38ace</strong></p>
+        </div>
+      `;
+
+      // Test 2: Leer Personería
+      html += '<div class="card"><h3>2. Lectura de Colecciones</h3>';
+      
+      const tests = [
+        { name: 'Personería (gobierno/personeria)', docId: 'personeria' },
+        { name: 'Contraloría (gobierno/contraloria)', docId: 'contraloria' },
+        { name: 'PFC (gobierno/pfc)', docId: 'pfc' }
+      ];
+
+      for (const t of tests) {
+        html += `<div style="margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 1px dashed #e1e8ed;">`;
+        html += `<h4>Probando lectura de: ${t.name}</h4>`;
+        
+        try {
+          const docRef = doc(db, "gobierno", t.docId);
+          const docSnap = await getDoc(docRef);
+
+          if (docSnap.exists()) {
+            const data = docSnap.data();
+            html += `<p><span class="status-badge success">Éxito</span> Documento leído correctamente.</p>`;
+            html += `<p>Campos encontrados: ${Object.keys(data).join(', ')}</p>`;
+            html += `<pre>${JSON.stringify({
+              nombre: data[t.docId]?.nombre || 'No definido',
+              cargo: data[t.docId]?.cargo || data[t.docId]?.slogan || 'No definido',
+              noticias_count: (data.noticias || []).length,
+              calendario_count: (data.calendario || []).length
+            }, null, 2)}</pre>`;
+          } else {
+            html += `<p><span class="status-badge warning">Documento vacío</span> El documento existe pero no contiene datos o no se encontró.</p>`;
+            html += `
+              <div class="suggestion sug-warn">
+                <strong>Sugerencia:</strong> La base de datos está conectada pero vacía. Debes sembrar la base de datos ejecutando el cargador de datos iniciales.
+                <br><br>
+                <a href="admin/seed.html" class="btn">Ir a Sembrar Base de Datos</a>
+              </div>
+            `;
+          }
+        } catch (error) {
+          html += `<p><span class="status-badge error">Fallo de lectura</span></p>`;
+          html += `<pre>Error Código: ${error.code}\nError Mensaje: ${error.message}</pre>`;
+          
+          if (error.code === 'permission-denied') {
+            html += `
+              <div class="suggestion sug-error">
+                <strong>Sugerencia de Seguridad (Firestore Rules):</strong> 
+                El error <code>permission-denied</code> significa que las <strong>Reglas de Seguridad de Firestore</strong> en tu Consola de Firebase están bloqueando el acceso público de lectura.
+                <br><br>
+                <strong>Cómo solucionarlo:</strong>
+                <ol>
+                  <li>Entra a la <a href="https://console.firebase.google.com/project/gobiernoescolar-38ace/firestore/rules" target="_blank" style="color: inherit; font-weight: bold;">Consola de Firebase (Firestore Rules)</a>.</li>
+                  <li>Cambia las reglas a la configuración segura que definimos:
+                    <pre>rules_version = '2';\nservice cloud.firestore {\n  match /databases/{database}/documents {\n    match /gobierno/{document} {\n      allow read: if true;\n      allow write: if request.auth != null;\n    }\n  }\n}</pre>
+                  </li>
+                  <li>Haz clic en <strong>Publicar</strong> (Publish) en la consola de Firebase.</li>
+                </ol>
+              </div>
+            `;
+          } else {
+            html += `
+              <div class="suggestion sug-error">
+                <strong>Sugerencia:</strong> Revisa tu consola del navegador (F12 -> Console) para ver si hay bloqueos de red o errores de conexión.
+              </div>
+            `;
+          }
+        }
+        html += `</div>`;
+      }
+      
+      html += '</div>';
+      resultsContainer.innerHTML = html;
+    }
+
+    runDiagnostic();
+  </script>
+
+</body>
+</html>
