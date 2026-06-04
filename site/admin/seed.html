@@ -14,6 +14,7 @@
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
     import { getFirestore, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+    import { getAuth, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyBsrNdWn8-EHkriujFNNsPo_ik5haFkxCM",
@@ -26,6 +27,7 @@
 
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
+    const auth = getAuth(app);
 
     const personeriaData = {
       "personeria": {
@@ -137,14 +139,21 @@
       const btn = document.getElementById('btn-seed');
       btn.disabled = true;
       btn.textContent = 'Cargando...';
-      statusEl.textContent = 'Enviando datos a Firebase, por favor espera...';
+      statusEl.textContent = 'Autenticando e iniciando carga de datos...';
       try {
+        try {
+          await signInWithEmailAndPassword(auth, "gobiernoescolar@auth.com", "SR20KDET");
+          console.log("Logged in for seed successfully");
+        } catch (authError) {
+          console.warn("Auth signin failed, attempting anonymous/public write:", authError.message);
+        }
+
         await setDoc(doc(db, "gobierno", "personeria"), personeriaData);
         await setDoc(doc(db, "gobierno", "contraloria"), contraloriaData);
         await setDoc(doc(db, "gobierno", "pfc"), pfcData);
         statusEl.innerHTML = '<span style="color: green;">¡DATOS CARGADOS CON ÉXITO!</span><br><br>Ya puedes cerrar esta ventana y entrar a tu página web o al panel de administración.';
       } catch (e) {
-        statusEl.innerHTML = '<span style="color: red;">Error: ' + e.message + '</span>';
+        statusEl.innerHTML = '<span style="color: red;">Error al sembrar base de datos: ' + e.message + '</span><br><br><small>Si el error es de permisos (permission-denied), asegúrate de que las Reglas de Seguridad en tu consola de Firebase estén configuradas para permitir la lectura pública y escritura por usuarios autenticados.</small>';
         console.error(e);
         btn.disabled = false;
         btn.textContent = '⚠ Cargar datos iniciales';
