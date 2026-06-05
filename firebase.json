@@ -2,6 +2,7 @@
   "hosting": {
     "public": "site",
     "cleanUrls": true,
+    "trailingSlash": true,
     "ignore": [
       "firebase.json",
       "**/.*",
