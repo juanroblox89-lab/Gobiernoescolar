@@ -336,10 +336,14 @@ function renderBuzonLink() {
 
 // ─── ACTIVE NAV ───────────────────────────────────────────────────────────────
 function setActiveNav() {
-  const page = window.location.pathname.split('/').pop() || 'index.html';
+  let page = window.location.pathname.split('/').pop();
+  if (!page || page === 'contraloria') page = 'index';
+  else page = page.replace('.html', '');
+
   document.querySelectorAll('.nav-links a').forEach(a => {
-    const href = a.getAttribute('href');
-    if (href === page || (page === 'index.html' && href === 'index.html')) {
+    let href = a.getAttribute('href').replace('.html', '');
+    if (href === './' || href === '') href = 'index';
+    if (href === page) {
       a.classList.add('active');
     }
   });

@@ -30,7 +30,7 @@ const sections = {
 
 // ─── AUTENTICACIÓN LOCAL ──────────────────────────────────────────────────────
 if (!currentUserEmail) {
-  window.location.href = 'index.html'; // Redirigir al login si no hay sesión
+  window.location.href = './'; // Redirigir al login si no hay sesión
 } else {
   if (userEmailEl) userEmailEl.textContent = currentUserEmail;
 
@@ -53,7 +53,7 @@ if (!currentUserEmail) {
 if (logoutBtn) {
   logoutBtn.addEventListener('click', () => {
     localStorage.removeItem('adminUser');
-    window.location.href = 'index.html';
+    window.location.href = './';
   });
 }
 

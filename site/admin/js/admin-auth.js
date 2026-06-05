@@ -14,7 +14,7 @@ const loginBtn = document.getElementById('login-btn');
 
 // Redirigir si ya está logueado en LocalStorage
 if (localStorage.getItem('adminUser')) {
-  window.location.href = 'dashboard.html';
+  window.location.href = 'dashboard';
 }
 
 if (loginForm) {
@@ -32,14 +32,14 @@ if (loginForm) {
       await signInWithEmailAndPassword(auth, email, password);
       console.log("Sesión iniciada con Firebase Auth");
       localStorage.setItem('adminUser', email);
-      window.location.href = 'dashboard.html';
+      window.location.href = 'dashboard';
     } catch (firebaseError) {
       console.warn("Firebase Auth falló, intentando credenciales locales de respaldo:", firebaseError.message);
       
       // Fallback a credenciales fijas si Firebase Auth falla (p.ej., si no se han creado las cuentas en consola)
       if (CREDENTIALS[email] && CREDENTIALS[email] === password) {
         localStorage.setItem('adminUser', email);
-        window.location.href = 'dashboard.html';
+        window.location.href = 'dashboard';
       } else {
         errorMsg.textContent = 'Credenciales inválidas. Verifica el correo y la contraseña.';
         loginBtn.disabled = false;

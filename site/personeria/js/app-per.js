@@ -265,9 +265,15 @@ function renderBuzonLink() {
 // ─── ACTIVE NAV ───────────────────────────────────────────────────────────────
 function setActiveNav() {
   let page = window.location.pathname.split('/').pop();
-  if (!page || page === 'personeria') page = 'index.html';
+  if (!page || page === 'personeria') page = 'index';
+  else page = page.replace('.html', '');
+
   document.querySelectorAll('.nav-links a').forEach(a => {
-    if (a.getAttribute('href') === page) a.classList.add('active');
+    let href = a.getAttribute('href').replace('.html', '');
+    if (href === './' || href === '') href = 'index';
+    if (href === page) {
+      a.classList.add('active');
+    }
   });
 }
 
