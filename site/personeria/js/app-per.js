@@ -19,16 +19,20 @@ async function loadData() {
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
 function formatDate(str) {
   if (!str) return '';
-  const [y, m, d] = str.split('-');
+  const parts = String(str).split('T')[0].split('-');
+  if (parts.length < 3) return str;
+  const [y, m, d] = parts;
   const months = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
-  return `${parseInt(d)} ${months[parseInt(m)-1]} ${y}`;
+  return `${parseInt(d)} ${months[parseInt(m)-1] || '?'} ${y}`;
 }
 
 function formatDateShort(str) {
   if (!str) return { dia: '', mes: '' };
-  const [y, m, d] = str.split('-');
+  const parts = String(str).split('T')[0].split('-');
+  if (parts.length < 3) return { dia: '', mes: '' };
+  const [y, m, d] = parts;
   const months = ['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'];
-  return { dia: parseInt(d), mes: months[parseInt(m)-1] };
+  return { dia: parseInt(d), mes: months[parseInt(m)-1] || '' };
 }
 
 function esc(str) {
@@ -50,8 +54,7 @@ const CAT_NOTICIA = {
 
 // ─── RENDER: HERO ─────────────────────────────────────────────────────────────
 function renderHero() {
-  const p = DATA.personeria;
-  if (!p) return; // Guard against missing data
+  const p = DATA.personeria || {}; // Guard against missing data
 
   document.querySelectorAll('[data-per-nombre]').forEach(el => el.textContent = p.nombre);
   document.querySelectorAll('[data-per-slogan]').forEach(el => el.textContent = `"${p.slogan}"`);
@@ -68,8 +71,8 @@ function renderHero() {
 
   const statEventos = document.getElementById('stat-eventos');
   if (statEventos) {
-    const hoy = new Date();
-    const proximos = (DATA.calendario || []).filter(e => new Date(e.fecha) >= hoy).length;
+    const hoyStr = new Date().toISOString().split('T')[0];
+    const proximos = (DATA.calendario || []).filter(e => e.fecha >= hoyStr).length;
     statEventos.textContent = proximos;
   }
 }
@@ -92,7 +95,7 @@ function renderNoticias() {
       <article class="noticia-card">
         <div class="noticia-img" style="background:var(--rosa-claro);display:flex;align-items:center;justify-content:center;">
           ${cleanFotoUrl
-            ? `<img src="${cleanFotoUrl}" alt="${esc(n.titulo)}" style="width:100%;height:100%;object-fit:cover;">`
+            ? `<img src="${esc(cleanFotoUrl)}" alt="${esc(n.titulo)}" style="width:100%;height:100%;object-fit:cover;">`
             : `<img src="../assets/images/logo-per.png" alt="Logo" style="width:80px;height:80px;object-fit:contain;border-radius:50%;opacity:0.7;" onerror="this.style.display='none'">`
           }
         </div>
@@ -113,7 +116,7 @@ function renderNoticias() {
 let calYear, calMonth;
 
 function renderCalendario() {
-  const container = document.getElementById('calendario-container');
+  const container = document.getElementById('calendario');
   if (!container) return;
 
   const hoy = new Date();
@@ -148,7 +151,7 @@ function renderMes() {
   const diasMes = new Date(calYear, calMonth + 1, 0).getDate();
   const hoy = new Date();
 
-  const eventosDelMes = (DATA.calendario || []).filter(e => {
+  const eventosDelMes = (DATA.calendario || []).filter(e => e.fecha && typeof e.fecha === 'string').filter(e => {
     const [y, m] = e.fecha.split('-').map(Number);
     return y === calYear && m - 1 === calMonth;
   });
@@ -228,13 +231,13 @@ function renderActividades() {
     return;
   }
 
-  container.innerHTML = actividades.map(a => {
+  container.innerHTML = actividades.slice().reverse().map(a => {
     const cleanFotoUrl = a.foto_url && !a.foto_url.trim().startsWith('javascript:') ? a.foto_url : '';
     return `
       <div class="noticia-card">
         <div class="noticia-img" style="background:var(--rosa-claro);display:flex;align-items:center;justify-content:center;">
           ${cleanFotoUrl
-            ? `<img src="${cleanFotoUrl}" alt="${esc(a.titulo)}" style="width:100%;height:100%;object-fit:cover;">`
+            ? `<img src="${esc(cleanFotoUrl)}" alt="${esc(a.titulo)}" style="width:100%;height:100%;object-fit:cover;">`
             : `<img src="../assets/images/logo-per.png" alt="Logo" style="width:80px;height:80px;object-fit:contain;border-radius:50%;opacity:0.7;" onerror="this.style.display='none'">`
           }
         </div>
@@ -261,7 +264,8 @@ function renderBuzonLink() {
 
 // ─── ACTIVE NAV ───────────────────────────────────────────────────────────────
 function setActiveNav() {
-  const page = window.location.pathname.split('/').pop() || 'index.html';
+  let page = window.location.pathname.split('/').pop();
+  if (!page || page === 'personeria') page = 'index.html';
   document.querySelectorAll('.nav-links a').forEach(a => {
     if (a.getAttribute('href') === page) a.classList.add('active');
   });
@@ -273,7 +277,7 @@ function renderWhatsappLink() {
   waLinks.forEach(el => {
     const wa = DATA.personeria && DATA.personeria.whatsapp;
     if (wa) {
-      el.href = 'https://wa.me/57' + wa.replace(/\s+/g, '');
+      el.href = 'https://wa.me/57' + String(wa).replace(/\s+/g, '');
       el.textContent = 'WhatsApp';
       el.style.display = 'inline';
     } else {

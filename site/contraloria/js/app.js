@@ -3,7 +3,7 @@ import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-
 
 // ─── DATA ───────────────────────────────────────────────────────────────────
 let DATA = {};
-let activeFilter = 'all';
+let activeFilter = 'todas';
 
 async function loadData() {
   try {
@@ -21,14 +21,17 @@ async function loadData() {
 
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
 function initials(name) {
-  return name.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase();
+  if (!name || typeof name !== 'string') return '';
+  return name.split(' ').slice(0, 2).filter(Boolean).map(w => w[0]).join('').toUpperCase();
 }
 
 function formatDate(str) {
   if (!str) return '';
-  const [y, m, d] = str.split('-');
+  const parts = String(str).split('T')[0].split('-');
+  if (parts.length < 3) return str;
+  const [y, m, d] = parts;
   const months = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
-  return `${parseInt(d)} ${months[parseInt(m)-1]} ${y}`;
+  return `${parseInt(d)} ${months[parseInt(m)-1] || '?'} ${y}`;
 }
 
 const ESTADO_LABELS = {
@@ -56,8 +59,7 @@ function esc(str) {
 
 // ─── RENDER: HERO ─────────────────────────────────────────────────────────────
 function renderHero() {
-  const p = DATA.contraloria;
-  if (!p) return;
+  const p = DATA.contraloria || {};
 
   const nombreEl = document.getElementById('hero-nombre');
   if (nombreEl) nombreEl.textContent = p.nombre;
@@ -96,7 +98,7 @@ function renderHero() {
   waLinks.forEach(el => {
     const wa = p.redes && p.redes.whatsapp;
     if (wa) {
-      el.href = 'https://wa.me/57' + wa.replace(/\s+/g, '');
+      el.href = 'https://wa.me/57' + String(wa).replace(/\s+/g, '');
       el.textContent = 'WhatsApp';
       el.style.display = 'inline';
     } else {
@@ -268,17 +270,17 @@ function renderNoticias() {
       <article class="noticia-card">
         <div class="noticia-img" style="background:var(--rojo-claro);display:flex;align-items:center;justify-content:center;">
         ${cleanFotoUrl
-          ? `<img src="${cleanFotoUrl}" alt="${esc(n.titulo)}" style="width:100%;height:100%;object-fit:cover;">`
+          ? `<img src="${esc(cleanFotoUrl)}" alt="${esc(n.titulo)}" style="width:100%;height:100%;object-fit:cover;">`
           : `<img src="../assets/images/logo-cont.png" alt="Logo" style="width:80px;height:80px;object-fit:contain;border-radius:50%;opacity:0.7;" onerror="this.style.display='none'">`
         }
       </div>
         <div class="noticia-body">
           <div class="noticia-meta">
-            <span class="noticia-cat ${cat.cls}">${cat.label}</span>
-            <span class="noticia-fecha">${formatDate(n.fecha)}</span>
+            <span class="noticia-cat ${cat.cls}">${esc(cat.label)}</span>
+            <span class="noticia-fecha">${esc(formatDate(n.fecha))}</span>
           </div>
-          <div class="noticia-titulo">${n.titulo}</div>
-          <div class="noticia-resumen">${n.resumen}</div>
+          <div class="noticia-titulo">${esc(n.titulo)}</div>
+          <div class="noticia-resumen">${esc(n.resumen)}</div>
         </div>
       </article>
     `;
@@ -291,7 +293,7 @@ function renderSemaforoEditor() {
   if (!btn || !panel) return;
 
   btn.addEventListener('click', () => {
-    const isOpen = panel.style.display !== 'none';
+    const isOpen = panel.style.display === 'block';
     panel.style.display = isOpen ? 'none' : 'block';
     btn.textContent = isOpen ? '\u270F Editar semáforo' : '\u2715 Cerrar editor';
     if (!isOpen) {

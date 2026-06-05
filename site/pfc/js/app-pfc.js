@@ -30,9 +30,11 @@ function formatDate(str) {
 
 function formatDateShort(str) {
   if (!str) return { dia: '', mes: '' };
-  const [y, m, d] = str.split('-');
+  const parts = String(str).split('T')[0].split('-');
+  if (parts.length < 3) return { dia: '', mes: '' };
+  const [y, m, d] = parts;
   const months = ['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'];
-  return { dia: parseInt(d), mes: months[parseInt(m)-1] };
+  return { dia: parseInt(d), mes: months[parseInt(m)-1] || '' };
 }
 
 function esc(str) {
@@ -54,8 +56,7 @@ const CAT = {
 
 // ─── RENDER: HERO ─────────────────────────────────────────────────────────────
 function renderHero() {
-  const p = DATA.pfc;
-  if (!p) return; // Guard against missing data
+  const p = DATA.pfc || {};
   document.querySelectorAll('[data-pfc-nombre]').forEach(el => el.textContent = p.nombre);
   document.querySelectorAll('[data-pfc-slogan]').forEach(el => el.textContent = `"${p.slogan}"`);
   document.querySelectorAll('[data-pfc-objetivo]').forEach(el => el.textContent = p.objetivo);
@@ -68,8 +69,8 @@ function renderHero() {
 
   const se = document.getElementById('stat-eventos');
   if (se) {
-    const hoy = new Date();
-    se.textContent = (DATA.calendario || []).filter(e => new Date(e.fecha) >= hoy).length;
+    const hoyStr = new Date().toISOString().split('T')[0];
+    se.textContent = (DATA.calendario || []).filter(e => e.fecha >= hoyStr).length;
   }
 }
 
@@ -89,7 +90,7 @@ function renderNoticias() {
       <article class="noticia-card">
         <div class="noticia-img">
           ${cleanFotoUrl
-            ? `<img src="${cleanFotoUrl}" alt="${esc(n.titulo)}" style="width:100%;height:100%;object-fit:cover;">`
+            ? `<img src="${esc(cleanFotoUrl)}" alt="${esc(n.titulo)}" style="width:100%;height:100%;object-fit:cover;">`
             : `<img src="../assets/images/logo-pfc.png" style="width:64px;height:64px;border-radius:50%;opacity:0.4;" onerror="this.style.display='none'">`
           }
         </div>
@@ -145,7 +146,7 @@ function renderMes() {
   const primer = new Date(calYear, calMonth, 1).getDay();
   const diasMes = new Date(calYear, calMonth + 1, 0).getDate();
   const hoy = new Date();
-  const diasEvento = new Set((DATA.calendario || []).filter(e => { const [y,m] = e.fecha.split('-').map(Number); return y===calYear && m-1===calMonth; }).map(e => parseInt(e.fecha.split('-')[2])));
+  const diasEvento = new Set((DATA.calendario || []).filter(e => e.fecha && typeof e.fecha === 'string').filter(e => { const [y,m] = e.fecha.split('-').map(Number); return y===calYear && m-1===calMonth; }).map(e => parseInt(e.fecha.split('-')[2])));
   let html = '';
   for (let i = 0; i < primer; i++) html += `<div class="cal-day empty"></div>`;
   for (let d = 1; d <= diasMes; d++) {
@@ -178,7 +179,7 @@ function renderActividades() {
       <div class="noticia-card">
         <div class="noticia-img">
           ${cleanFotoUrl
-            ? `<img src="${cleanFotoUrl}" alt="${esc(a.titulo)}" style="width:100%;height:100%;object-fit:cover;">`
+            ? `<img src="${esc(cleanFotoUrl)}" alt="${esc(a.titulo)}" style="width:100%;height:100%;object-fit:cover;">`
             : `<img src="../assets/images/logo-pfc.png" style="width:64px;height:64px;border-radius:50%;opacity:0.4;" onerror="this.style.display='none'">`
           }
         </div>
@@ -199,8 +200,11 @@ function renderBuzonLink() {
 
 // ─── ACTIVE NAV ───────────────────────────────────────────────────────────────
 function setActiveNav() {
-  const page = window.location.pathname.split('/').pop() || 'index.html';
-  document.querySelectorAll('.nav-links a').forEach(a => { if (a.getAttribute('href') === page) a.classList.add('active'); });
+  let page = window.location.pathname.split('/').pop();
+  if (!page || page === 'pfc') page = 'index.html';
+  document.querySelectorAll('.nav-links a').forEach(a => {
+    if (a.getAttribute('href') === page) a.classList.add('active');
+  });
 }
 
 // ─── RENDER: WHATSAPP ──────────────────────────────────────────────────────────
@@ -209,7 +213,7 @@ function renderWhatsappLink() {
   waLinks.forEach(el => {
     const wa = DATA.pfc && DATA.pfc.whatsapp;
     if (wa) {
-      el.href = 'https://wa.me/57' + wa.replace(/\s+/g, '');
+      el.href = 'https://wa.me/57' + String(wa).replace(/\s+/g, '');
       el.textContent = 'WhatsApp';
       el.style.display = 'inline';
     } else {

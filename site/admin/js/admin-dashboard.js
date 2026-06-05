@@ -97,7 +97,7 @@ function renderRecursos() {
         <div class="card-content">
           <h3 class="card-title">${esc(item.titulo)}</h3>
           <p class="card-desc" style="font-size:12px; margin-top:4px;">${esc(item.descripcion || item.resumen || '')}</p>
-          ${cleanUrl ? `<a href="${cleanUrl}" target="_blank" style="font-size:13px; color:var(--primary); margin-top:8px; display:inline-block; font-weight:600;">Abrir recurso actual ↗</a>` : '<span style="font-size:13px; color:#e74c3c; margin-top:8px; display:inline-block; font-weight:600;">Sin enlace/archivo</span>'}
+          ${cleanUrl ? `<a href="${esc(cleanUrl)}" target="_blank" style="font-size:13px; color:var(--primary); margin-top:8px; display:inline-block; font-weight:600;">Abrir recurso actual ↗</a>` : '<span style="font-size:13px; color:#e74c3c; margin-top:8px; display:inline-block; font-weight:600;">Sin enlace/archivo</span>'}
         </div>
         <div class="card-actions">
           <button class="btn-edit" onclick="editRecurso(${index})">✏️ Editar Link/Archivo</button>
@@ -273,9 +273,14 @@ window.editNoticia = (index) => {
 
 window.deleteNoticia = async (index) => {
   if(confirm("¿Estás seguro de eliminar esta noticia?")) {
+    const originalNoticias = [...(currentData.noticias || [])];
     currentData.noticias.splice(index, 1);
-    await saveData();
-    renderNoticiasList();
+    const success = await saveData();
+    if (success) {
+      renderNoticiasList();
+    } else {
+      currentData.noticias = originalNoticias;
+    }
   }
 };
 
@@ -292,6 +297,21 @@ formNoticia.addEventListener('submit', async (e) => {
   try {
     // Upload image if selected
     if (fotoFile) {
+      const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
+      if (fotoFile.size > MAX_FILE_SIZE) {
+        alert("El archivo excede el tamaño límite de 5 MB.");
+        btn.textContent = 'Guardar';
+        btn.disabled = false;
+        return;
+      }
+      const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+      if (!allowedTypes.includes(fotoFile.type)) {
+        alert("Formato de imagen inválido. Solo se admiten JPG, PNG, WEBP y GIF.");
+        btn.textContent = 'Guardar';
+        btn.disabled = false;
+        return;
+      }
+
       btn.textContent = 'Subiendo foto...';
       const storageRef = ref(storage, `imagenes/${currentRole}/${Date.now()}_${fotoFile.name}`);
       const snapshot = await uploadBytes(storageRef, fotoFile);
@@ -379,9 +399,14 @@ window.editEvento = (index) => {
 
 window.deleteEvento = async (index) => {
   if(confirm("¿Estás seguro de eliminar este evento?")) {
+    const originalCalendario = [...(currentData.calendario || [])];
     currentData.calendario.splice(index, 1);
-    await saveData();
-    renderEventosList();
+    const success = await saveData();
+    if (success) {
+      renderEventosList();
+    } else {
+      currentData.calendario = originalCalendario;
+    }
   }
 };
 
@@ -445,6 +470,21 @@ document.getElementById('form-recurso').addEventListener('submit', async (e) => 
     let finalUrl = urlInput;
 
     if (fileInput) {
+      const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
+      if (fileInput.size > MAX_FILE_SIZE) {
+        alert("El archivo excede el tamaño límite de 5 MB.");
+        btn.disabled = false;
+        btn.textContent = originalText;
+        return;
+      }
+      const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'];
+      if (!allowedTypes.includes(fileInput.type)) {
+        alert("Formato de archivo inválido. Solo se admiten PDFs e imágenes (JPG, PNG, WEBP).");
+        btn.disabled = false;
+        btn.textContent = originalText;
+        return;
+      }
+
       btn.textContent = 'Subiendo Archivo...';
       const fileRef = ref(storage, `recursos/${currentRole}/${Date.now()}_${fileInput.name}`);
       const snapshot = await uploadBytes(fileRef, fileInput);
@@ -454,11 +494,16 @@ document.getElementById('form-recurso').addEventListener('submit', async (e) => 
     const fieldName = currentRole === 'personeria' ? 'documentos' : 'informes';
     const urlProp = currentRole === 'personeria' ? 'url' : 'archivo_url';
 
+    const originalUrl = currentData[fieldName][editingRecursoIndex][urlProp];
     currentData[fieldName][editingRecursoIndex][urlProp] = finalUrl;
 
-    await saveData();
-    renderRecursos();
-    document.getElementById('modal-recurso').classList.remove('active');
+    const success = await saveData();
+    if (success) {
+      renderRecursos();
+      document.getElementById('modal-recurso').classList.remove('active');
+    } else {
+      currentData[fieldName][editingRecursoIndex][urlProp] = originalUrl;
+    }
   } catch (error) {
     console.error("Error saving recurso", error);
     alert("Hubo un error al guardar: " + error.message);
