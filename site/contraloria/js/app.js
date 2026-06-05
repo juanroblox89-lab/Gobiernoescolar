@@ -3,6 +3,7 @@ import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-
 
 // ─── DATA ───────────────────────────────────────────────────────────────────
 let DATA = {};
+let activeFilter = 'all';
 
 async function loadData() {
   try {
