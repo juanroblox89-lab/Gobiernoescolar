@@ -4,18 +4,18 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Buzón — PFC I.E.E.N.S.S.M</title>
-  <link rel="stylesheet" href="css/style-pfc.css">
+  <link rel="stylesheet" href="/pfc/css/style-pfc.css">
 </head>
 <body>
 
 <nav>
   <div class="nav-inner">
-    <a class="nav-logo" href="./">PFC <span>·</span> NSSM</a>
+    <a class="nav-logo" href="/pfc/">PFC <span>·</span> NSSM</a>
     <ul class="nav-links">
-      <li><a href="../" style="font-size:11px;opacity:0.45;">← Gobierno Escolar</a></li>
-      <li><a href="./">Inicio</a></li>
-      <li><a href="informate">Infórmate</a></li>
-      <li><a href="buzon" class="nav-buzon">Buzón ↗</a></li>
+      <li><a href="/" style="font-size:11px;opacity:0.45;">← Gobierno Escolar</a></li>
+      <li><a href="/pfc/">Inicio</a></li>
+      <li><a href="/pfc/informate">Infórmate</a></li>
+      <li><a href="/pfc/buzon" class="nav-buzon">Buzón ↗</a></li>
     </ul>
   </div>
 </nav>
@@ -26,7 +26,7 @@
 
     <!-- IZQUIERDA -->
     <div class="buzon-info">
-      <img src="../assets/images/logo-pfc.png" alt="Logo del Programa de Formación Complementaria"
+      <img src="/assets/images/logo-pfc.png" alt="Logo del Programa de Formación Complementaria"
         style="width:72px;height:72px;border-radius:50%;object-fit:cover;margin-bottom:1.5rem;border:2px solid var(--rojo-borde);"
         onerror="this.style.display='none'">
       <h2>Buzón de participación</h2>
@@ -101,7 +101,7 @@
   <a data-whatsapp href="#" target="_blank" style="font-size:12px; color:#25D366; font-weight:600; text-decoration:none; margin-top:4px; display:inline-block;"></a>
 </footer>
 
-<script type="module" src="js/app-pfc.js"></script>
+<script type="module" src="/pfc/js/app-pfc.js"></script>
 <script>
   document.getElementById('tipo').addEventListener('change', function() {
     const textarea = document.getElementById('mensaje');
