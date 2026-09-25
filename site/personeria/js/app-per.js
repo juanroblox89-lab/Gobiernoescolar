@@ -1,21 +1,9 @@
-import { db } from '../../js/firebase-config.js';
-import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+import { iniciarArea, datosEnCache } from '../../js/datos.js';
+import { esc, urlSegura, esqueleto, revelar, errorCarga } from '../../js/ui.js';
+import '../../js/admin-inline.js';
 
 // ─── DATA ───────────────────────────────────────────────────────────────────
 let DATA = {};
-async function loadData() {
-  try {
-    const docRef = doc(db, "gobierno", "personeria");
-    const docSnap = await getDoc(docRef);
-    if (docSnap.exists()) {
-      DATA = docSnap.data();
-    } else {
-      console.warn("No data found for personeria");
-    }
-  } catch (error) {
-    console.error("Error loading data from Firebase:", error);
-  }
-}
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
 function formatDate(str) {
   if (!str) return '';
@@ -33,16 +21,6 @@ function formatDateShort(str) {
   const [y, m, d] = parts;
   const months = ['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'];
   return { dia: parseInt(d), mes: months[parseInt(m)-1] || '' };
-}
-
-function esc(str) {
-  if (str === null || str === undefined) return '';
-  return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
 }
 
 const CAT_NOTICIA = {
@@ -90,13 +68,13 @@ function renderNoticias() {
 
   container.innerHTML = noticias.slice().reverse().map(n => {
     const cat = CAT_NOTICIA[n.categoria] || { label: n.categoria, cls: 'cat-info' };
-    const cleanFotoUrl = n.foto_url && !n.foto_url.trim().startsWith('javascript:') ? n.foto_url : '';
+    const cleanFotoUrl = urlSegura(n.foto_url);
     return `
-      <article class="noticia-card">
+      <article class="noticia-card" data-tabla="noticias" data-id="${n.id}" data-foto="${esc(cleanFotoUrl)}">
         <div class="noticia-img" style="background:var(--rosa-claro);display:flex;align-items:center;justify-content:center;">
           ${cleanFotoUrl
-            ? `<img src="${esc(cleanFotoUrl)}" alt="${esc(n.titulo)}" style="width:100%;height:100%;object-fit:cover;">`
-            : `<img src="../assets/images/logo-per.png" alt="Logo" style="width:80px;height:80px;object-fit:contain;border-radius:50%;opacity:0.7;" onerror="this.style.display='none'">`
+            ? `<img class="ui-foto" src="${esc(cleanFotoUrl)}" alt="${esc(n.titulo)}" loading="lazy" decoding="async" style="width:100%;height:100%;object-fit:cover;">`
+            : `<img class="ui-logo" src="/assets/images/logo-per.png" alt="" style="width:80px;height:80px;object-fit:contain;border-radius:50%;" onerror="this.style.display='none'">`
           }
         </div>
         <div class="noticia-body">
@@ -119,13 +97,17 @@ function renderCalendario() {
   const container = document.getElementById('calendario');
   if (!container) return;
 
-  const hoy = new Date();
-  calYear = hoy.getFullYear();
-  calMonth = hoy.getMonth();
-
+  if (calYear === undefined) {
+    const hoy = new Date();
+    calYear = hoy.getFullYear();
+    calMonth = hoy.getMonth();
+    bindCalendario();
+  }
   renderMes();
   renderEventosList();
+}
 
+function bindCalendario() {
   document.getElementById('cal-prev')?.addEventListener('click', () => {
     calMonth--;
     if (calMonth < 0) { calMonth = 11; calYear--; }
@@ -206,9 +188,9 @@ function renderDocumentos() {
   }
 
   container.innerHTML = docs.map(d => {
-    const cleanUrl = d.url && !d.url.trim().startsWith('javascript:') ? d.url : '#';
+    const cleanUrl = urlSegura(d.url) || '#';
     return `
-      <a class="doc-card" href="${cleanUrl}" target="${d.url ? '_blank' : '_self'}">
+      <a class="doc-card" href="${cleanUrl}" target="${d.url ? '_blank' : '_self'}" rel="noopener">
         <div class="doc-icon">${esc(d.icono)}</div>
         <div>
           <div class="doc-titulo">${esc(d.titulo)}</div>
@@ -232,13 +214,13 @@ function renderActividades() {
   }
 
   container.innerHTML = actividades.slice().reverse().map(a => {
-    const cleanFotoUrl = a.foto_url && !a.foto_url.trim().startsWith('javascript:') ? a.foto_url : '';
+    const cleanFotoUrl = urlSegura(a.foto_url);
     return `
-      <div class="noticia-card">
+      <div class="noticia-card" data-tabla="actividades" data-id="${a.id}" data-foto="${esc(cleanFotoUrl)}">
         <div class="noticia-img" style="background:var(--rosa-claro);display:flex;align-items:center;justify-content:center;">
           ${cleanFotoUrl
-            ? `<img src="${esc(cleanFotoUrl)}" alt="${esc(a.titulo)}" style="width:100%;height:100%;object-fit:cover;">`
-            : `<img src="../assets/images/logo-per.png" alt="Logo" style="width:80px;height:80px;object-fit:contain;border-radius:50%;opacity:0.7;" onerror="this.style.display='none'">`
+            ? `<img class="ui-foto" src="${esc(cleanFotoUrl)}" alt="${esc(a.titulo)}" loading="lazy" decoding="async" style="width:100%;height:100%;object-fit:cover;">`
+            : `<img class="ui-logo" src="/assets/images/logo-per.png" alt="" style="width:80px;height:80px;object-fit:contain;border-radius:50%;" onerror="this.style.display='none'">`
           }
         </div>
         <div class="noticia-body">
@@ -293,8 +275,20 @@ function renderWhatsappLink() {
 }
 
 // ─── INICIALIZACIÓN ─────────────────────────────────────────────────────────────────────
-document.addEventListener('DOMContentLoaded', async () => {
-  await loadData();
+const SECCIONES = [
+  ['noticias-container', 'tarjeta', 3],
+  ['actividades-container', 'tarjeta', 3],
+  ['docs-container', 'fila', 2],
+  ['eventos-lista', 'fila', 3]
+];
+
+function pintar(datos, { error } = {}) {
+  const contenedores = SECCIONES.map(([id]) => document.getElementById(id)).filter(Boolean);
+  if (error) {
+    contenedores.forEach(el => errorCarga(el, arrancar));
+    return;
+  }
+  DATA = datos;
   renderHero();
   renderNoticias();
   renderCalendario();
@@ -302,5 +296,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   renderActividades();
   renderBuzonLink();
   renderWhatsappLink();
-  setActiveNav();
-});
+  contenedores.forEach(revelar);
+}
+
+function arrancar() {
+  if (!datosEnCache('personeria')) SECCIONES.forEach(([id, tipo, n]) => esqueleto(document.getElementById(id), tipo, n));
+  iniciarArea('personeria', pintar);
+}
+
+setActiveNav();
+arrancar();

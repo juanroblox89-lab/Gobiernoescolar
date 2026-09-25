@@ -2,3 +2,6 @@ node_modules/
 .gemini/
 *.log
 .DS_Store
+_migracion/
+.env*
+.claude/

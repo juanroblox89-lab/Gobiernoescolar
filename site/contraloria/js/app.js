@@ -1,23 +1,11 @@
-import { db } from '../../js/firebase-config.js';
-import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+import { iniciarArea, datosEnCache } from '../../js/datos.js';
+import { esc, urlSegura, esqueleto, revelar, errorCarga, toast } from '../../js/ui.js';
+import { sb } from '../../js/supabase.js';
+import '../../js/admin-inline.js';
 
 // ─── DATA ───────────────────────────────────────────────────────────────────
 let DATA = {};
 let activeFilter = 'todas';
-
-async function loadData() {
-  try {
-    const docRef = doc(db, "gobierno", "contraloria");
-    const docSnap = await getDoc(docRef);
-    if (docSnap.exists()) {
-      DATA = docSnap.data();
-    } else {
-      console.warn("No data found for contraloria");
-    }
-  } catch (error) {
-    console.error("Error loading data from Firebase:", error);
-  }
-}
 
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
 function initials(name) {
@@ -46,16 +34,6 @@ const CAT_LABELS = {
   transparencia: 'Transparencia',
   ambiente: 'Ambiente'
 };
-
-function esc(str) {
-  if (str === null || str === undefined) return '';
-  return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
 
 // ─── RENDER: HERO ─────────────────────────────────────────────────────────────
 function renderHero() {
@@ -133,13 +111,17 @@ function renderPropuestas(filter) {
   `).join('');
 }
 
+let filtrosListos = false;
 function initFilterButtons() {
+  if (filtrosListos) return;
+  filtrosListos = true;
   document.querySelectorAll('.filter-btn').forEach(btn => {
     btn.addEventListener('click', function() {
       document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
       this.classList.add('active');
       activeFilter = this.dataset.filter;
       renderPropuestas(activeFilter);
+      revelar(document.getElementById('props-container'));
     });
   });
 }
@@ -175,7 +157,7 @@ function renderInformes() {
   }
 
   container.innerHTML = DATA.informes.map(inf => {
-    const cleanUrl = inf.archivo_url && !inf.archivo_url.trim().startsWith('javascript:') ? inf.archivo_url : '';
+    const cleanUrl = urlSegura(inf.archivo_url);
     return `
       <div class="informe-card">
         <div>
@@ -188,7 +170,7 @@ function renderInformes() {
           </div>
         </div>
         ${cleanUrl
-          ? `<a class="btn-descargar" href="${cleanUrl}" target="_blank">↓ Descargar</a>`
+          ? `<a class="btn-descargar" href="${esc(cleanUrl)}" target="_blank" rel="noopener">↓ Descargar</a>`
           : `<span class="btn-descargar" style="opacity:0.4;cursor:default;">Próximamente</span>`
         }
       </div>
@@ -206,14 +188,14 @@ function renderActividades() {
     return;
   }
 
-  container.innerHTML = DATA.actividades.map(a => {
-    const cleanFotoUrl = a.foto_url && !a.foto_url.trim().startsWith('javascript:') ? a.foto_url : '';
+  container.innerHTML = DATA.actividades.slice().reverse().map(a => {
+    const cleanFotoUrl = urlSegura(a.foto_url);
     return `
-      <div class="actividad-card">
+      <div class="actividad-card" data-tabla="actividades" data-id="${a.id}" data-foto="${esc(cleanFotoUrl)}">
         <div class="actividad-img">
           ${cleanFotoUrl
-            ? `<img src="${cleanFotoUrl}" alt="${esc(a.titulo)}">`
-            : `<img src="../assets/images/logo-cont.png" alt="Logo" style="width:70px;height:70px;object-fit:contain;border-radius:50%;opacity:0.6;" onerror="this.style.display='none'">`}
+            ? `<img class="ui-foto" src="${esc(cleanFotoUrl)}" alt="${esc(a.titulo)}" loading="lazy" decoding="async">`
+            : `<img class="ui-logo" src="/assets/images/logo-cont.png" alt="" style="width:70px;height:70px;object-fit:contain;border-radius:50%;" onerror="this.style.display='none'">`}
         </div>
         <div class="actividad-body">
           <div class="actividad-fecha">${esc(formatDate(a.fecha))}</div>
@@ -234,7 +216,7 @@ function renderEquipo() {
   container.innerHTML = equipo.map((m, i) => {
     const esContralora = i === 0;
     const avatarImg = esContralora
-      ? `<img src="../assets/images/logo-cont.png" alt="${esc(m.nombre)}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" onerror="this.style.display='none'">` 
+      ? `<img src="/assets/images/logo-cont.png" alt="${esc(m.nombre)}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" onerror="this.style.display='none'">` 
       : `<span>${esc(initials(m.nombre))}</span>`;
     return `
       <div class="eq-card ${esContralora ? 'contralora' : ''}">
@@ -265,13 +247,13 @@ function renderNoticias() {
 
   container.innerHTML = DATA.noticias.slice().reverse().map(n => {
     const cat = CAT_NOTICIA[n.categoria] || { label: n.categoria, cls: 'cat-info' };
-    const cleanFotoUrl = n.foto_url && !n.foto_url.trim().startsWith('javascript:') ? n.foto_url : '';
+    const cleanFotoUrl = urlSegura(n.foto_url);
     return `
-      <article class="noticia-card">
+      <article class="noticia-card" data-tabla="noticias" data-id="${n.id}" data-foto="${esc(cleanFotoUrl)}">
         <div class="noticia-img" style="background:var(--rojo-claro);display:flex;align-items:center;justify-content:center;">
         ${cleanFotoUrl
-          ? `<img src="${esc(cleanFotoUrl)}" alt="${esc(n.titulo)}" style="width:100%;height:100%;object-fit:cover;">`
-          : `<img src="../assets/images/logo-cont.png" alt="Logo" style="width:80px;height:80px;object-fit:contain;border-radius:50%;opacity:0.7;" onerror="this.style.display='none'">`
+          ? `<img class="ui-foto" src="${esc(cleanFotoUrl)}" alt="${esc(n.titulo)}" loading="lazy" decoding="async" style="width:100%;height:100%;object-fit:cover;">`
+          : `<img class="ui-logo" src="/assets/images/logo-cont.png" alt="" style="width:80px;height:80px;object-fit:contain;border-radius:50%;" onerror="this.style.display='none'">`
         }
       </div>
         <div class="noticia-body">
@@ -287,7 +269,10 @@ function renderNoticias() {
   }).join('');
 }
 
+let editorListo = false;
 function renderSemaforoEditor() {
+  if (editorListo) return;
+  editorListo = true;
   const btn = document.getElementById('sem-edit-btn');
   const panel = document.getElementById('sem-edit-panel');
   if (!btn || !panel) return;
@@ -304,25 +289,26 @@ function renderSemaforoEditor() {
     }
   });
 
-  document.getElementById('sem-save-btn').addEventListener('click', () => {
+  document.getElementById('sem-save-btn').addEventListener('click', async () => {
+    const guardar = document.getElementById('sem-save-btn');
     const parse = id => document.getElementById(id).value.split('\n').map(s => s.trim()).filter(Boolean);
-    const today = new Date().toISOString().split('T')[0];
-    const newData = {
-      ultima_actualizacion: today,
-      verde:    parse('edit-verde'),
-      amarillo: parse('edit-amarillo'),
-      rojo:     parse('edit-rojo')
-    };
-    DATA.semaforo = newData;
-    renderSemaforo();
-    panel.style.display = 'none';
-    btn.textContent = '\u270F Editar semáforo';
-    const fb = document.getElementById('sem-feedback');
-    if (fb) {
-      fb.style.display = 'inline';
-      fb.textContent = '\u2713 Vista previa actualizada (para guardar definitivo usa el panel admin)';
-      setTimeout(() => { fb.style.display = 'none'; }, 4000);
+    const hoy = new Date().toLocaleDateString('en-CA');
+    const nuevo = { verde: parse('edit-verde'), amarillo: parse('edit-amarillo'), rojo: parse('edit-rojo') };
+    guardar.disabled = true;
+    guardar.textContent = 'Guardando…';
+    const { error } = await sb.from('semaforo').upsert({ area: 'contraloria', ...nuevo, actualizado: hoy });
+    guardar.disabled = false;
+    guardar.textContent = 'Guardar cambios';
+    if (error) {
+      toast('No se pudo guardar: ' + error.message, { tipo: 'error' });
+      return;
     }
+    DATA.semaforo = { ...nuevo, ultima_actualizacion: hoy };
+    renderSemaforo();
+    ['sem-verde', 'sem-amarillo', 'sem-rojo'].forEach(id => revelar(document.getElementById(id)));
+    panel.style.display = 'none';
+    btn.textContent = '✏ Editar semáforo';
+    toast('Semáforo actualizado');
   });
 }
 
@@ -350,8 +336,21 @@ function setActiveNav() {
 }
 
 // ─── INIT ─────────────────────────────────────────────────────────────────────
-document.addEventListener('DOMContentLoaded', async () => {
-  await loadData();
+const SECCIONES = [
+  ['noticias-container', 'tarjeta', 3],
+  ['actividades-container', 'tarjeta', 3],
+  ['props-container', 'bloque', 3],
+  ['informes-container', 'bloque', 1],
+  ['equipo-container', 'bloque', 4]
+];
+
+function pintar(datos, { error } = {}) {
+  const contenedores = SECCIONES.map(([id]) => document.getElementById(id)).filter(Boolean);
+  if (error) {
+    contenedores.forEach(el => errorCarga(el, arrancar));
+    return;
+  }
+  DATA = datos;
   renderHero();
   renderPropuestas(activeFilter);
   initFilterButtons();
@@ -362,5 +361,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   renderEquipo();
   renderNoticias();
   renderBuzonLink();
-  setActiveNav();
-});
+  [...contenedores, ...['sem-verde', 'sem-amarillo', 'sem-rojo'].map(id => document.getElementById(id))].forEach(revelar);
+}
+
+function arrancar() {
+  if (!datosEnCache('contraloria')) SECCIONES.forEach(([id, tipo, n]) => esqueleto(document.getElementById(id), tipo, n));
+  iniciarArea('contraloria', pintar);
+}
+
+setActiveNav();
+arrancar();

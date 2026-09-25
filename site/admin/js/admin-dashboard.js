@@ -1,518 +1,645 @@
-import { db, storage } from '../../js/firebase-config.js';
-import { doc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
-import { ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-storage.js";
+import { sb, AREAS, areaDelAdmin, subirArchivo } from '../../js/supabase.js';
+import { cargarArea } from '../../js/datos.js';
+import { toast, esc, urlSegura } from '../../js/ui.js';
 
-// VARIABLES GLOBALES
-let currentUserEmail = localStorage.getItem('adminUser');
-let currentRole = null; // 'personeria', 'contraloria', o 'pfc'
-let currentData = null; // Los datos actuales de Firestore
-
-function esc(str) {
-  if (str === null || str === undefined) return '';
-  return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
-
-// DOM ELEMENTS
-const userEmailEl = document.getElementById('user-email');
-const logoutBtn = document.getElementById('logout-btn');
-const navItems = document.querySelectorAll('.nav-item');
-const sections = {
-  noticias: document.getElementById('noticias-section'),
-  calendario: document.getElementById('calendario-section'),
-  recursos: document.getElementById('recursos-section'),
-  semaforo: document.getElementById('semaforo-section')
+// ─── ÍCONOS ───────────────────────────────────────────────────────────────────
+const svg = d => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
+const ICON = {
+  mas: svg('<path d="M12 5v14M5 12h14"/>'),
+  lapiz: svg('<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>'),
+  basura: svg('<path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>'),
+  imagen: svg('<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.1-3.1a2 2 0 0 0-2.8 0L6 21"/>')
 };
 
-// ─── AUTENTICACIÓN LOCAL ──────────────────────────────────────────────────────
-if (!currentUserEmail) {
-  window.location.href = './'; // Redirigir al login si no hay sesión
+// ─── CONFIGURACIÓN DE SECCIONES ───────────────────────────────────────────────
+const CATEGORIAS = { anuncio: 'Anuncio', logro: 'Logro', evento: 'Evento', info: 'Información' };
+const CAT_PROPUESTA = { participacion: 'Participación', comunicacion: 'Comunicación', transparencia: 'Transparencia', ambiente: 'Ambiente' };
+const ESTADOS = { pendiente: 'Pendiente', en_progreso: 'En progreso', cumplida: 'Cumplida' };
+
+const hoy = () => new Date().toLocaleDateString('en-CA');
+const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+const fmtFecha = f => {
+  if (!f) return '';
+  const [y, m, d] = String(f).slice(0, 10).split('-');
+  return `${parseInt(d)} ${MESES[parseInt(m) - 1]} ${y}`;
+};
+const recorte = (t, n = 90) => (t && t.length > n ? t.slice(0, n).trimEnd() + '…' : t || '');
+
+const SECCIONES = [
+  {
+    id: 'noticias', nav: 'Noticias', titulo: 'Noticias publicadas', singular: 'noticia', genero: 'a',
+    tabla: 'noticias', orden: ['fecha', false], foto: true,
+    campos: [
+      { k: 'titulo', l: 'Título', req: true },
+      { k: 'fecha', l: 'Fecha', t: 'date', req: true, def: hoy },
+      { k: 'categoria', l: 'Categoría', t: 'select', ops: CATEGORIAS, def: () => 'anuncio' },
+      { k: 'foto_url', l: 'Foto', t: 'imagen' },
+      { k: 'resumen', l: 'Resumen', t: 'textarea', filas: 5, req: true }
+    ],
+    meta: r => `<span>${fmtFecha(r.fecha)}</span><span class="tag">${esc(CATEGORIAS[r.categoria] || r.categoria)}</span>`
+  },
+  {
+    id: 'actividades', nav: 'Actividades', titulo: 'Actividades', singular: 'actividad', genero: 'a',
+    tabla: 'actividades', orden: ['fecha', false], foto: true,
+    campos: [
+      { k: 'titulo', l: 'Título', req: true },
+      { k: 'fecha', l: 'Fecha', t: 'date', req: true, def: hoy },
+      { k: 'foto_url', l: 'Foto', t: 'imagen' },
+      { k: 'descripcion', l: 'Descripción', t: 'textarea', filas: 5 }
+    ],
+    meta: r => `<span>${fmtFecha(r.fecha)}</span>`
+  },
+  {
+    id: 'eventos', nav: 'Calendario', titulo: 'Eventos del calendario', singular: 'evento', genero: 'o',
+    tabla: 'eventos', orden: ['fecha', true],
+    campos: [
+      { k: 'titulo', l: 'Título del evento', req: true },
+      { k: 'fecha', l: 'Fecha', t: 'date', req: true, def: hoy },
+      { k: 'descripcion', l: 'Descripción', t: 'textarea', filas: 4 }
+    ],
+    meta: r => `<span>${fmtFecha(r.fecha)}</span>${r.fecha >= hoy() ? '<span class="tag ok">Próximo</span>' : '<span class="tag">Pasado</span>'}`
+  },
+  {
+    id: 'avisos', areas: ['pfc'], nav: 'Avisos', titulo: 'Avisos', singular: 'aviso', genero: 'o',
+    tabla: 'avisos', orden: ['fecha', false],
+    campos: [
+      { k: 'titulo', l: 'Título', req: true },
+      { k: 'fecha', l: 'Fecha', t: 'date', req: true, def: hoy },
+      { k: 'texto', l: 'Texto', t: 'textarea', filas: 4 }
+    ],
+    meta: r => `<span>${fmtFecha(r.fecha)}</span>`
+  },
+  {
+    id: 'documentos', areas: ['personeria'], nav: 'Documentos', titulo: 'Documentos', singular: 'documento', genero: 'o',
+    tabla: 'documentos', orden: ['orden', true],
+    campos: [
+      { k: 'titulo', l: 'Título', req: true },
+      { k: 'descripcion', l: 'Descripción', t: 'textarea', filas: 3 },
+      { k: 'icono', l: 'Ícono (emoji)', def: () => '📄', ancho: 'corto' },
+      { k: 'url', l: 'Archivo o enlace', t: 'archivo' }
+    ],
+    meta: r => (urlSegura(r.url) ? `<a href="${esc(r.url)}" target="_blank" rel="noopener" class="tag ok">Abrir ↗</a>` : '<span class="tag aviso">Sin archivo</span>') + `<span>${esc(recorte(r.descripcion, 60))}</span>`
+  },
+  {
+    id: 'informes', areas: ['contraloria'], nav: 'Informes', titulo: 'Informes', singular: 'informe', genero: 'o',
+    tabla: 'informes', orden: ['fecha', false],
+    campos: [
+      { k: 'titulo', l: 'Título', req: true },
+      { k: 'periodo', l: 'Periodo', ph: 'Primer periodo 2026' },
+      { k: 'fecha', l: 'Fecha', t: 'date', req: true, def: hoy },
+      { k: 'resumen', l: 'Resumen', t: 'textarea', filas: 3 },
+      { k: 'logros', l: 'Logros', t: 'lista', hint: 'Uno por línea.' },
+      { k: 'pendientes', l: 'Pendientes', t: 'lista', hint: 'Uno por línea.' },
+      { k: 'archivo_url', l: 'Archivo del informe', t: 'archivo' }
+    ],
+    meta: r => `<span>${esc(r.periodo)}</span>` + (urlSegura(r.archivo_url) ? '<span class="tag ok">Con archivo</span>' : '<span class="tag aviso">Sin archivo</span>')
+  },
+  {
+    id: 'propuestas', areas: ['contraloria'], nav: 'Propuestas', titulo: 'Propuestas', singular: 'propuesta', genero: 'a',
+    tabla: 'propuestas', orden: ['numero', true],
+    campos: [
+      { k: 'numero', l: 'Número', t: 'number', ancho: 'corto' },
+      { k: 'titulo', l: 'Título', req: true },
+      { k: 'descripcion', l: 'Descripción', t: 'textarea', filas: 3 },
+      { k: 'categoria', l: 'Categoría', t: 'select', ops: CAT_PROPUESTA, def: () => 'participacion' },
+      { k: 'estado', l: 'Estado', t: 'select', ops: ESTADOS, def: () => 'pendiente' }
+    ],
+    meta: r => `<span class="tag">${esc(CAT_PROPUESTA[r.categoria] || r.categoria)}</span>
+      <select class="estado-rapido" data-id="${r.id}" aria-label="Estado">${Object.entries(ESTADOS).map(([v, l]) => `<option value="${v}" ${r.estado === v ? 'selected' : ''}>${l}</option>`).join('')}</select>`
+  },
+  { id: 'semaforo', areas: ['contraloria'], nav: 'Semáforo', especial: true },
+  { id: 'perfil', nav: 'Perfil', especial: true }
+];
+
+// ─── ESTADO ───────────────────────────────────────────────────────────────────
+const E = { area: null, filas: {}, perfil: null, semaforo: null, seccion: null, filtro: 'todas' };
+const $ = sel => document.querySelector(sel);
+const main = $('#main');
+const secciones = () => SECCIONES.filter(s => !s.areas || s.areas.includes(E.area));
+const cfg = id => SECCIONES.find(s => s.id === id);
+const refrescarSitio = () => cargarArea(E.area).catch(() => {});
+
+// ─── ARRANQUE ─────────────────────────────────────────────────────────────────
+const { data: { session } } = await sb.auth.getSession();
+E.area = session ? await areaDelAdmin() : null;
+if (!E.area) {
+  if (session) await sb.auth.signOut();
+  location.replace('/admin/');
 } else {
-  if (userEmailEl) userEmailEl.textContent = currentUserEmail;
-
-  // Determinar el rol basado en el email
-  if (currentUserEmail.includes('personeria')) currentRole = 'personeria';
-  else if (currentUserEmail.includes('contraloria')) currentRole = 'contraloria';
-  else if (currentUserEmail.includes('pfc')) currentRole = 'pfc';
-  else currentRole = 'personeria'; // Default fallback
-
-  // Solo Contraloría ve la pestaña del semáforo
-  const semaforoNavBtn = document.querySelector('[data-target="semaforo"]');
-  if (semaforoNavBtn && currentRole !== 'contraloria') {
-    semaforoNavBtn.style.display = 'none';
-  }
-
-  // Iniciar carga de datos
-  loadData();
+  document.body.dataset.rol = E.area;
+  $('#area-nombre').textContent = AREAS[E.area].nombre;
+  $('#user-email').textContent = session.user.email;
+  $('#link-sitio').href = AREAS[E.area].ruta;
+  document.title = `Panel · ${AREAS[E.area].nombre}`;
+  $('#logout-btn').addEventListener('click', async () => {
+    await sb.auth.signOut();
+    location.replace('/admin/');
+  });
+  await cargarTodo();
+  pintarNav();
+  aplicarHash();
+  window.addEventListener('hashchange', aplicarHash);
+  $('#cargando').classList.add('fuera');
 }
 
-if (logoutBtn) {
-  logoutBtn.addEventListener('click', () => {
-    localStorage.removeItem('adminUser');
-    window.location.href = './';
-  });
+async function cargarTodo() {
+  const listas = secciones().filter(s => s.tabla);
+  const [perfil, sem, ...res] = await Promise.all([
+    sb.from('areas').select('*').eq('id', E.area).single(),
+    sb.from('semaforo').select('*').eq('area', E.area).maybeSingle(),
+    ...listas.map(s => sb.from(s.tabla).select('*').eq('area', E.area).order(s.orden[0], { ascending: s.orden[1] }).order('id', { ascending: false }))
+  ]);
+  const error = [perfil, sem, ...res].find(r => r.error)?.error;
+  if (error) toast('Error cargando datos: ' + error.message, { tipo: 'error', duracion: 8000 });
+  E.perfil = perfil.data;
+  E.semaforo = sem.data;
+  listas.forEach((s, i) => { E.filas[s.id] = res[i].data || []; });
 }
 
-// ─── NAVEGACIÓN ─────────────────────────────────────────────────────────────
-navItems.forEach(item => {
-  item.addEventListener('click', () => {
-    navItems.forEach(n => n.classList.remove('active'));
-    item.classList.add('active');
-    Object.values(sections).forEach(s => s && s.classList.add('hidden'));
-    const target = sections[item.dataset.target];
-    if (target) target.classList.remove('hidden');
-  });
-});
-
-// ─── RENDER RECURSOS ─────────────────────────────────────────────────────────
-function renderRecursos() {
-  const list = document.getElementById('recursos-list');
-  let items = [];
-  
-  if (currentRole === 'personeria') {
-    items = currentData.documentos || [];
-  } else if (currentRole === 'contraloria') {
-    items = currentData.informes || [];
-  } else {
-    // El PFC no tiene recursos aún, ocultar el tab
-    const navBtn = document.querySelector('[data-target="recursos"]');
-    if (navBtn) navBtn.style.display = 'none';
-    return;
-  }
-
-  if (items.length === 0) {
-    list.innerHTML = '<p style="color:var(--text-muted);">No hay recursos disponibles para editar en este perfil.</p>';
-    return;
-  }
-
-  list.innerHTML = items.map((item, index) => {
-    let url = item.url || item.archivo_url || '';
-    const cleanUrl = url && !url.trim().startsWith('javascript:') ? url : '';
-    return `
-      <div class="card">
-        <div class="card-content">
-          <h3 class="card-title">${esc(item.titulo)}</h3>
-          <p class="card-desc" style="font-size:12px; margin-top:4px;">${esc(item.descripcion || item.resumen || '')}</p>
-          ${cleanUrl ? `<a href="${esc(cleanUrl)}" target="_blank" style="font-size:13px; color:var(--primary); margin-top:8px; display:inline-block; font-weight:600;">Abrir recurso actual ↗</a>` : '<span style="font-size:13px; color:#e74c3c; margin-top:8px; display:inline-block; font-weight:600;">Sin enlace/archivo</span>'}
-        </div>
-        <div class="card-actions">
-          <button class="btn-edit" onclick="editRecurso(${index})">✏️ Editar Link/Archivo</button>
-        </div>
-      </div>
-    `;
+// ─── NAVEGACIÓN ───────────────────────────────────────────────────────────────
+function pintarNav() {
+  $('#nav').innerHTML = secciones().map(s => {
+    const filas = E.filas[s.id];
+    const sinFoto = s.foto && filas?.some(r => !r.foto_url);
+    return `<button class="nav-item ${E.seccion === s.id ? 'active' : ''}" data-ir="${s.id}">
+      ${esc(s.nav)}${sinFoto ? '<span class="nav-alerta" title="Hay publicaciones sin foto"></span>' : ''}
+      ${filas ? `<span class="nav-count">${filas.length}</span>` : ''}</button>`;
   }).join('');
 }
 
-// ─── FIRESTORE ──────────────────────────────────────────────────────────────
-async function loadData() {
-  try {
-    const docRef = doc(db, 'gobierno', currentRole);
-    const docSnap = await getDoc(docRef);
-    if (docSnap.exists()) {
-      currentData = docSnap.data();
-      renderNoticiasList();
-      renderEventosList();
-      renderRecursos();
-      renderSemaforoAdmin();
-    } else {
-      console.log('No such document!');
-    }
-  } catch (error) {
-    console.error('Error fetching data:', error);
+$('#nav').addEventListener('click', e => {
+  const b = e.target.closest('[data-ir]');
+  if (b) ir(b.dataset.ir);
+});
+
+function ir(id, { sinHash = false } = {}) {
+  if (!secciones().some(s => s.id === id)) id = secciones()[0].id;
+  if (E.seccion !== id) E.filtro = 'todas';
+  E.seccion = id;
+  if (!sinHash) history.replaceState(null, '', '#' + id);
+  pintarNav();
+  document.querySelector('.nav-item.active')?.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
+  pintarSeccion();
+}
+
+// #noticias · #nuevo=noticias · #editar=noticias:12
+function aplicarHash() {
+  const h = decodeURIComponent(location.hash.slice(1));
+  const [accion, valor] = h.split('=');
+  if (accion === 'nuevo' && cfg(valor)) {
+    ir(valor);
+    abrirModal(cfg(valor));
+  } else if (accion === 'editar' && valor) {
+    const [id, fila] = valor.split(':');
+    ir(id);
+    const r = E.filas[id]?.find(x => String(x.id) === fila);
+    if (r) abrirModal(cfg(id), r);
+  } else {
+    ir(h || 'noticias', { sinHash: !h });
   }
 }
 
-async function saveSemaforo(newSem) {
+// ─── SECCIONES ────────────────────────────────────────────────────────────────
+function pintarSeccion() {
+  const s = cfg(E.seccion);
+  window.scrollTo({ top: 0 });
+  if (s.id === 'semaforo') return pintarSemaforo();
+  if (s.id === 'perfil') return pintarPerfil();
+
+  const todas = E.filas[s.id] || [];
+  const sinFoto = s.foto ? todas.filter(r => !r.foto_url) : [];
+  if (E.filtro === 'sin-foto' && !sinFoto.length) E.filtro = 'todas';
+  const filas = E.filtro === 'sin-foto' ? sinFoto : todas;
+  const nueva = `Nuev${s.genero} ${s.singular}`;
+
+  main.innerHTML = `
+    <section class="seccion">
+      <div class="page-header">
+        <div>
+          <h1 class="page-title">${esc(s.titulo)}</h1>
+          <p class="page-sub">${todas.length} en total${sinFoto.length ? ` · ${sinFoto.length} sin foto` : ''}</p>
+        </div>
+        <button class="btn-add" data-nuevo>${ICON.mas}${nueva}</button>
+      </div>
+      ${sinFoto.length ? `<div class="filtros">
+        <button class="filtro ${E.filtro === 'todas' ? 'active' : ''}" data-filtro="todas">Todas (${todas.length})</button>
+        <button class="filtro ${E.filtro === 'sin-foto' ? 'active' : ''}" data-filtro="sin-foto">Sin foto (${sinFoto.length})</button>
+      </div>` : ''}
+      <div class="lista" id="lista">
+        ${filas.length ? filas.map((r, i) => fila(s, r, i)).join('') : `<div class="vacio">Todavía no hay ${esc(s.titulo.toLowerCase())}.<br><button class="btn-add" data-nuevo>${ICON.mas}${nueva}</button></div>`}
+      </div>
+    </section>`;
+  main.querySelectorAll('.thumb img').forEach(img => img.complete && img.classList.add('ok'));
+}
+
+function fila(s, r, i = 0) {
+  const url = urlSegura(r.foto_url);
+  const thumb = !s.foto ? '' : url
+    ? `<button class="thumb" data-foto title="Cambiar foto"><img src="${esc(url)}" alt="" loading="lazy" onload="this.classList.add('ok')"><span class="thumb-hover">Cambiar</span></button>`
+    : `<button class="thumb vacia" data-foto title="Asociar imagen">${ICON.imagen}Asociar</button>`;
+  return `<div class="data-card" data-id="${r.id}" style="--i:${Math.min(i, 10)}">
+    ${thumb}
+    <div class="data-info">
+      <h3>${s.id === 'propuestas' ? `<span style="color:var(--text-muted)">${String(r.numero).padStart(2, '0')}</span> ` : ''}${esc(r.titulo)}</h3>
+      <div class="data-meta">${s.meta(r)}</div>
+    </div>
+    <div class="data-actions">
+      <button class="btn-icon" data-editar title="Editar" aria-label="Editar">${ICON.lapiz}</button>
+      <button class="btn-icon delete" data-borrar title="Eliminar" aria-label="Eliminar">${ICON.basura}</button>
+    </div>
+  </div>`;
+}
+
+main.addEventListener('click', e => {
+  const s = cfg(E.seccion);
+  if (e.target.closest('[data-nuevo]')) return abrirModal(s);
+  const f = e.target.closest('[data-filtro]');
+  if (f) { E.filtro = f.dataset.filtro; return pintarSeccion(); }
+  const card = e.target.closest('.data-card');
+  if (!card) return;
+  const r = E.filas[s.id].find(x => String(x.id) === card.dataset.id);
+  if (e.target.closest('[data-editar]')) abrirModal(s, r);
+  else if (e.target.closest('[data-borrar]')) borrar(s, r, card);
+  else if (e.target.closest('[data-foto]')) elegirArchivo('image/*', file => fotoRapida(s, r, card, file));
+});
+
+// Cambio de estado de una propuesta sin abrir el formulario.
+main.addEventListener('change', async e => {
+  const sel = e.target.closest('.estado-rapido');
+  if (!sel) return;
+  const r = E.filas.propuestas.find(x => String(x.id) === sel.dataset.id);
+  const antes = r.estado;
+  r.estado = sel.value;
+  const { error } = await sb.from('propuestas').update({ estado: sel.value }).eq('id', r.id);
+  if (error) { r.estado = antes; sel.value = antes; return toast(error.message, { tipo: 'error' }); }
+  toast(`Estado: ${ESTADOS[sel.value]}`);
+  refrescarSitio();
+});
+
+// Arrastrar una imagen sobre la miniatura de una fila.
+main.addEventListener('dragover', e => {
+  const t = e.target.closest('.thumb');
+  if (!t) return;
+  e.preventDefault();
+  t.classList.add('soltar');
+});
+main.addEventListener('dragleave', e => e.target.closest('.thumb')?.classList.remove('soltar'));
+main.addEventListener('drop', e => {
+  const t = e.target.closest('.thumb');
+  if (!t) return;
+  e.preventDefault();
+  t.classList.remove('soltar');
+  const file = [...e.dataTransfer.files].find(f => f.type.startsWith('image/'));
+  const card = t.closest('.data-card');
+  const s = cfg(E.seccion);
+  if (file) fotoRapida(s, E.filas[s.id].find(x => String(x.id) === card.dataset.id), card, file);
+});
+
+function elegirArchivo(accept, alElegir) {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = accept;
+  input.addEventListener('change', () => input.files[0] && alElegir(input.files[0]));
+  input.click();
+}
+
+async function fotoRapida(s, r, card, file) {
+  const thumb = card.querySelector('.thumb');
+  thumb.insertAdjacentHTML('beforeend', '<span class="thumb-cargando"><span class="spinner"></span></span>');
   try {
-    const docRef = doc(db, 'gobierno', 'contraloria');
-    await updateDoc(docRef, { semaforo: newSem });
-    currentData.semaforo = newSem;
-    return true;
-  } catch (error) {
-    console.error('Error guardando semáforo:', error);
-    alert('Error al guardar el semáforo: ' + error.message);
-    return false;
+    const url = await subirArchivo(E.area, file, s.tabla);
+    const { error } = await sb.from(s.tabla).update({ foto_url: url }).eq('id', r.id);
+    if (error) throw error;
+    r.foto_url = url;
+    await new Promise(res => { const img = new Image(); img.onload = img.onerror = res; img.src = url; });
+    reemplazarFila(s, r);
+    pintarNav();
+    actualizarSub(s);
+    toast('Imagen asociada');
+    refrescarSitio();
+  } catch (err) {
+    thumb.querySelector('.thumb-cargando')?.remove();
+    toast(err.message || 'No se pudo subir la imagen', { tipo: 'error' });
   }
 }
 
-async function saveData() {
-  try {
-    const docRef = doc(db, 'gobierno', currentRole);
-    const updates = {
-      noticias: currentData.noticias || [],
-      calendario: currentData.calendario || []
-    };
-    if (currentRole === 'personeria' && currentData.documentos) {
-      updates.documentos = currentData.documentos;
-    }
-    if (currentRole === 'contraloria' && currentData.informes) {
-      updates.informes = currentData.informes;
-    }
-    await updateDoc(docRef, updates);
-    return true;
-  } catch (error) {
-    console.error('Error updating document:', error);
-    alert('Hubo un error al guardar los cambios.');
-    return false;
+function reemplazarFila(s, r, destacar = false) {
+  const vieja = main.querySelector(`.data-card[data-id="${r.id}"]`);
+  const tmp = document.createElement('div');
+  tmp.innerHTML = fila(s, r);
+  const nueva = tmp.firstElementChild;
+  nueva.style.animation = 'none';
+  if (vieja) vieja.replaceWith(nueva);
+  if (destacar) {
+    nueva.classList.add('destacar');
+    nueva.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    setTimeout(() => nueva.classList.remove('destacar'), 1600);
   }
 }
 
-// ─── SEMAFORO (solo Contraloría) ────────────────────────────────────────────
-function renderSemaforoAdmin() {
-  if (currentRole !== 'contraloria') return;
-  const s = currentData.semaforo || { verde: [], amarillo: [], rojo: [] };
+function actualizarSub(s) {
+  const todas = E.filas[s.id];
+  const sinFoto = s.foto ? todas.filter(r => !r.foto_url).length : 0;
+  const sub = main.querySelector('.page-sub');
+  if (sub) sub.textContent = `${todas.length} en total${sinFoto ? ` · ${sinFoto} sin foto` : ''}`;
+}
 
-  const textarea = (id, vals) => `<textarea id="${id}" style="width:100%;min-height:120px;padding:10px;border-radius:8px;border:1px solid var(--border);font-size:13px;font-family:inherit;resize:vertical;" placeholder="Un elemento por línea...">${(vals||[]).join('\n')}</textarea>`;
-
-  const section = document.getElementById('semaforo-section');
-  if (!section) return;
-
-  section.innerHTML = `
-    <div class="page-header">
-      <h1 class="page-title">Semáforo Institucional</h1>
-    </div>
-    <div class="dashboard-info-box">
-      Escribe un elemento por línea en cada columna. Los cambios se guardarán en Firebase y se verán en la página de Contraloría en tiempo real.
-    </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-top:1.5rem;">
-      <div>
-        <div style="font-weight:700;color:#27ae60;margin-bottom:8px;font-size:13px;">🟢 Está bien</div>
-        ${textarea('sem-verde', s.verde)}
-      </div>
-      <div>
-        <div style="font-weight:700;color:#f39c12;margin-bottom:8px;font-size:13px;">🟡 Se puede mejorar</div>
-        ${textarea('sem-amarillo', s.amarillo)}
-      </div>
-      <div>
-        <div style="font-weight:700;color:#e74c3c;margin-bottom:8px;font-size:13px;">🔴 Necesita atención</div>
-        ${textarea('sem-rojo', s.rojo)}
-      </div>
-    </div>
-    <button id="btn-guardar-semaforo" class="btn-submit" style="margin-top:1.5rem;">Guardar Semáforo en Firebase</button>
-    <span id="sem-feedback-admin" style="margin-left:12px;color:#27ae60;font-weight:600;display:none;">&#10003; ¡Guardado correctamente!</span>
-  `;
-
-  document.getElementById('btn-guardar-semaforo').addEventListener('click', async () => {
-    const btn = document.getElementById('btn-guardar-semaforo');
-    btn.disabled = true;
-    btn.textContent = 'Guardando...';
-    const parse = id => document.getElementById(id).value.split('\n').map(s => s.trim()).filter(Boolean);
-    const today = new Date().toISOString().split('T')[0];
-    const newSem = {
-      ultima_actualizacion: today,
-      verde:    parse('sem-verde'),
-      amarillo: parse('sem-amarillo'),
-      rojo:     parse('sem-rojo')
-    };
-    const ok = await saveSemaforo(newSem);
-    if (ok) {
-      const fb = document.getElementById('sem-feedback-admin');
-      fb.style.display = 'inline';
-      setTimeout(() => { fb.style.display = 'none'; }, 3000);
+async function borrar(s, r, card) {
+  card.classList.add('saliendo');
+  const { error } = await sb.from(s.tabla).delete().eq('id', r.id);
+  if (error) {
+    card.classList.remove('saliendo');
+    return toast('No se pudo eliminar: ' + error.message, { tipo: 'error' });
+  }
+  E.filas[s.id] = E.filas[s.id].filter(x => x !== r);
+  setTimeout(() => { pintarSeccion(); pintarNav(); }, 200);
+  refrescarSitio();
+  const nombre = s.singular[0].toUpperCase() + s.singular.slice(1);
+  toast(`${nombre} eliminad${s.genero}`, {
+    accion: 'Deshacer',
+    duracion: 7000,
+    alAccionar: async () => {
+      const { id, created_at, ...copia } = r;
+      const { data, error: err } = await sb.from(s.tabla).insert(copia).select().single();
+      if (err) return toast(err.message, { tipo: 'error' });
+      E.filas[s.id].push(data);
+      ordenar(s);
+      pintarSeccion();
+      pintarNav();
+      reemplazarFila(s, data, true);
+      refrescarSitio();
     }
-    btn.disabled = false;
-    btn.textContent = 'Guardar Semáforo en Firebase';
   });
 }
 
-// ─── NOTICIAS ────────────────────────────────────────────────────────────────
-const noticiasListEl = document.getElementById('noticias-list');
-const modalNoticia = document.getElementById('modal-noticia');
-const formNoticia = document.getElementById('form-noticia');
-function renderNoticiasList() {
-  const noticias = currentData.noticias || [];
-  if (noticias.length === 0) {
-    noticiasListEl.innerHTML = '<p style="color:var(--text-muted)">No hay noticias publicadas.</p>';
-    return;
-  }
-
-  noticiasListEl.innerHTML = noticias.map((n, index) => `
-    <div class="data-card">
-      <div class="data-info">
-        <h3>${esc(n.titulo)}</h3>
-        <p>${esc(n.fecha)} | Categoría: ${esc(n.categoria)}</p>
-      </div>
-      <div class="data-actions">
-        <button class="btn-icon" onclick="editNoticia(${index})">✏️</button>
-        <button class="btn-icon delete" onclick="deleteNoticia(${index})">🗑️</button>
-      </div>
-    </div>
-  `).join('');
+function ordenar(s) {
+  const [col, asc] = s.orden;
+  E.filas[s.id].sort((a, b) => (a[col] > b[col] ? 1 : a[col] < b[col] ? -1 : b.id - a.id) * (asc ? 1 : -1));
 }
 
-document.getElementById('btn-add-noticia').addEventListener('click', () => {
-  formNoticia.reset();
-  document.getElementById('noticia-id').value = '';
-  document.getElementById('noticia-foto').value = '';
-  document.getElementById('noticia-foto-name').textContent = '';
-  document.getElementById('modal-noticia-title').textContent = 'Crear Noticia';
-  modalNoticia.classList.add('active');
-});
-
-document.getElementById('close-modal-noticia').addEventListener('click', () => modalNoticia.classList.remove('active'));
-document.getElementById('cancel-noticia').addEventListener('click', () => modalNoticia.classList.remove('active'));
-
-window.editNoticia = (index) => {
-  const n = currentData.noticias[index];
-  document.getElementById('noticia-id').value = index;
-  document.getElementById('noticia-titulo').value = n.titulo;
-  document.getElementById('noticia-fecha').value = n.fecha;
-  document.getElementById('noticia-categoria').value = n.categoria;
-  document.getElementById('noticia-foto').value = n.foto_url || '';
-  document.getElementById('noticia-foto-file').value = ''; // Reset file input
-  document.getElementById('noticia-foto-name').textContent = n.foto_url ? 'Imagen actual ya guardada' : '';
-  document.getElementById('noticia-resumen').value = n.resumen;
-  
-  document.getElementById('modal-noticia-title').textContent = 'Editar Noticia';
-  modalNoticia.classList.add('active');
-};
-
-window.deleteNoticia = async (index) => {
-  if(confirm("¿Estás seguro de eliminar esta noticia?")) {
-    const originalNoticias = [...(currentData.noticias || [])];
-    currentData.noticias.splice(index, 1);
-    const success = await saveData();
-    if (success) {
-      renderNoticiasList();
-    } else {
-      currentData.noticias = originalNoticias;
-    }
+// ─── CAMPOS DE FORMULARIO (modal y perfil) ────────────────────────────────────
+function campoHTML(c, valor) {
+  const id = `f-${c.k}`;
+  const req = c.req ? 'required' : '';
+  const hint = c.hint ? `<p class="form-hint">${esc(c.hint)}</p>` : '';
+  const estilo = c.ancho === 'corto' ? 'style="max-width:160px"' : '';
+  switch (c.t) {
+    case 'textarea':
+      return `<div class="form-group"><label for="${id}">${c.l}</label><textarea id="${id}" name="${c.k}" rows="${c.filas || 4}" ${req}>${esc(valor)}</textarea>${hint}</div>`;
+    case 'lista':
+      return `<div class="form-group"><label for="${id}">${c.l}</label><textarea id="${id}" name="${c.k}" rows="3">${esc((valor || []).join('\n'))}</textarea>${hint}</div>`;
+    case 'select':
+      return `<div class="form-group"><label for="${id}">${c.l}</label><select id="${id}" name="${c.k}">${Object.entries(c.ops).map(([v, l]) => `<option value="${v}" ${valor === v ? 'selected' : ''}>${l}</option>`).join('')}</select></div>`;
+    case 'imagen':
+      return `<div class="form-group"><span class="form-label">${c.l}</span>
+        <div class="dropzone" data-imagen="${c.k}">
+          <div class="dropzone-preview"></div>
+          <div class="dropzone-texto"><strong>Arrastra una foto aquí</strong>o elígela desde tu dispositivo. Se optimiza sola para que cargue rápido.
+            <div class="dropzone-botones"><button type="button" class="btn-mini" data-elegir>Elegir foto</button><button type="button" class="btn-mini peligro" data-quitar>Quitar</button></div>
+          </div>
+          <input type="hidden" name="${c.k}" value="${esc(valor)}">
+        </div></div>`;
+    case 'archivo':
+      return `<div class="form-group"><label for="${id}">${c.l}</label>
+        <input type="url" id="${id}" name="${c.k}" value="${esc(valor)}" placeholder="https://drive.google.com/…">
+        <div class="dropzone-botones"><button type="button" class="btn-mini" data-subir-pdf="${c.k}">Subir PDF o imagen</button></div>
+        <p class="form-hint">Pega un enlace o sube el archivo (máx. 10 MB).</p></div>`;
+    default:
+      return `<div class="form-group"><label for="${id}">${c.l}</label><input id="${id}" name="${c.k}" type="${c.t || 'text'}" value="${esc(valor)}" ${req} ${estilo} ${c.ph ? `placeholder="${esc(c.ph)}"` : ''}>${hint}</div>`;
   }
-};
+}
 
-formNoticia.addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const btn = e.target.querySelector('button[type="submit"]');
-  btn.textContent = 'Guardando...';
-  btn.disabled = true;
-
-  const idStr = document.getElementById('noticia-id').value;
-  let fotoUrl = document.getElementById('noticia-foto').value;
-  const fotoFile = document.getElementById('noticia-foto-file').files[0];
-
-  try {
-    // Upload image if selected
-    if (fotoFile) {
-      const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
-      if (fotoFile.size > MAX_FILE_SIZE) {
-        alert("El archivo excede el tamaño límite de 5 MB.");
-        btn.textContent = 'Guardar';
-        btn.disabled = false;
-        return;
-      }
-      const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
-      if (!allowedTypes.includes(fotoFile.type)) {
-        alert("Formato de imagen inválido. Solo se admiten JPG, PNG, WEBP y GIF.");
-        btn.textContent = 'Guardar';
-        btn.disabled = false;
-        return;
-      }
-
-      btn.textContent = 'Subiendo foto...';
-      const storageRef = ref(storage, `imagenes/${currentRole}/${Date.now()}_${fotoFile.name}`);
-      const snapshot = await uploadBytes(storageRef, fotoFile);
-      fotoUrl = await getDownloadURL(snapshot.ref);
-    }
-
-    const newNoticia = {
-      titulo: document.getElementById('noticia-titulo').value,
-      fecha: document.getElementById('noticia-fecha').value,
-      categoria: document.getElementById('noticia-categoria').value,
-      foto_url: fotoUrl,
-      resumen: document.getElementById('noticia-resumen').value,
-      id: Date.now() // Simple ID generation
+// Activa los campos de imagen/archivo dentro de un contenedor. `ocupado(bool)` bloquea el guardado mientras sube.
+function activarCampos(cont, ocupado, carpeta) {
+  cont.querySelectorAll('[data-imagen]').forEach(dz => {
+    const input = dz.querySelector('input[type=hidden]');
+    const prev = dz.querySelector('.dropzone-preview');
+    const quitar = dz.querySelector('[data-quitar]');
+    const pintar = url => {
+      prev.style.backgroundImage = url ? `url("${url}")` : '';
+      prev.innerHTML = url ? '' : ICON.imagen;
+      quitar.classList.toggle('hidden', !url);
+      dz.querySelector('[data-elegir]').textContent = url ? 'Cambiar foto' : 'Elegir foto';
     };
-
-    if(!currentData.noticias) currentData.noticias = [];
-
-    if (idStr !== '') {
-      const index = parseInt(idStr);
-      newNoticia.id = currentData.noticias[index].id;
-      currentData.noticias[index] = newNoticia;
-    } else {
-      currentData.noticias.push(newNoticia);
-    }
-
-    btn.textContent = 'Guardando datos...';
-    if (await saveData()) {
-      modalNoticia.classList.remove('active');
-      renderNoticiasList();
-    }
-  } catch (error) {
-    console.error("Error en submit:", error);
-    alert("Hubo un error al guardar la noticia o subir la imagen.");
-  }
-  
-  btn.textContent = 'Guardar';
-  btn.disabled = false;
-});
-
-// ─── CALENDARIO (Lógica idéntica) ─────────────────────────────────────────────
-const eventosListEl = document.getElementById('eventos-list');
-const modalEvento = document.getElementById('modal-evento');
-const formEvento = document.getElementById('form-evento');
-function renderEventosList() {
-  const eventos = currentData.calendario || [];
-  if (eventos.length === 0) {
-    eventosListEl.innerHTML = '<p style="color:var(--text-muted)">No hay eventos programados.</p>';
-    return;
-  }
-
-  eventosListEl.innerHTML = eventos.map((e, index) => `
-    <div class="data-card">
-      <div class="data-info">
-        <h3>${esc(e.titulo)}</h3>
-        <p>${esc(e.fecha)}</p>
-      </div>
-      <div class="data-actions">
-        <button class="btn-icon" onclick="editEvento(${index})">✏️</button>
-        <button class="btn-icon delete" onclick="deleteEvento(${index})">🗑️</button>
-      </div>
-    </div>
-  `).join('');
+    pintar(input.value);
+    const subir = async file => {
+      const local = URL.createObjectURL(file);
+      pintar(local);
+      prev.innerHTML = '<span class="spinner" style="color:#fff"></span>';
+      ocupado(true);
+      try {
+        input.value = await subirArchivo(E.area, file, carpeta);
+        pintar(input.value);
+      } catch (err) {
+        pintar(input.value);
+        toast(err.message || 'No se pudo subir la imagen', { tipo: 'error' });
+      } finally {
+        URL.revokeObjectURL(local);
+        ocupado(false);
+      }
+    };
+    dz.querySelector('[data-elegir]').addEventListener('click', () => elegirArchivo('image/*', subir));
+    quitar.addEventListener('click', () => { input.value = ''; pintar(''); });
+    dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('soltar'); });
+    dz.addEventListener('dragleave', () => dz.classList.remove('soltar'));
+    dz.addEventListener('drop', e => {
+      e.preventDefault();
+      dz.classList.remove('soltar');
+      const file = [...e.dataTransfer.files].find(f => f.type.startsWith('image/'));
+      if (file) subir(file);
+    });
+  });
+  cont.querySelectorAll('[data-subir-pdf]').forEach(b => {
+    b.addEventListener('click', () => elegirArchivo('application/pdf,image/*', async file => {
+      const texto = b.textContent;
+      b.innerHTML = '<span class="spinner"></span>';
+      ocupado(true);
+      try {
+        cont.querySelector(`[name="${b.dataset.subirPdf}"]`).value = await subirArchivo(E.area, file, 'documentos');
+        toast('Archivo subido');
+      } catch (err) {
+        toast(err.message || 'No se pudo subir el archivo', { tipo: 'error' });
+      } finally {
+        b.textContent = texto;
+        ocupado(false);
+      }
+    }));
+  });
 }
 
-document.getElementById('btn-add-evento').addEventListener('click', () => {
-  formEvento.reset();
-  document.getElementById('evento-id').value = '';
-  document.getElementById('modal-evento-title').textContent = 'Crear Evento';
-  modalEvento.classList.add('active');
+function leerCampos(form, campos) {
+  const datos = {};
+  for (const c of campos) {
+    const el = form.querySelector(`[name="${c.k}"]`);
+    if (!el) continue;
+    let v = el.value.trim();
+    if (c.t === 'lista') v = v.split('\n').map(x => x.trim()).filter(Boolean);
+    if (c.t === 'number') v = parseInt(v) || 0;
+    if (c.t === 'archivo' && v && !/^https?:\/\//i.test(v)) v = 'https://' + v;
+    datos[c.k] = v;
+  }
+  return datos;
+}
+
+function validar(form) {
+  let primero = null;
+  form.querySelectorAll('[required]').forEach(el => {
+    const mal = !el.value.trim();
+    el.setAttribute('aria-invalid', mal);
+    el.style.borderColor = mal ? 'var(--error)' : '';
+    if (mal && !primero) primero = el;
+  });
+  primero?.focus();
+  return !primero;
+}
+
+// ─── MODAL ────────────────────────────────────────────────────────────────────
+const modal = $('#modal');
+const form = $('#modal-form');
+const btnGuardar = $('#modal-guardar');
+let modalCtx = null;
+let subiendo = 0;
+let inicial = '';
+
+function abrirModal(s, r = null) {
+  modalCtx = { s, r };
+  $('#modal-title').textContent = r ? `Editar ${s.singular}` : `Nuev${s.genero} ${s.singular}`;
+  $('#modal-campos').innerHTML = s.campos.map(c => campoHTML(c, r ? r[c.k] : c.def?.() ?? '')).join('');
+  activarCampos($('#modal-campos'), on => {
+    subiendo += on ? 1 : -1;
+    btnGuardar.disabled = subiendo > 0;
+    btnGuardar.textContent = subiendo > 0 ? 'Subiendo foto…' : 'Guardar';
+  }, s.tabla);
+  inicial = JSON.stringify(leerCampos(form, s.campos));
+  modal.classList.add('active');
+  modal.setAttribute('aria-hidden', 'false');
+  document.body.style.overflow = 'hidden';
+  setTimeout(() => form.querySelector('input:not([type=hidden]), textarea')?.focus({ preventScroll: true }), 60);
+}
+
+function cerrarModal(forzar = false) {
+  if (!modal.classList.contains('active')) return;
+  const cambios = modalCtx && JSON.stringify(leerCampos(form, modalCtx.s.campos)) !== inicial;
+  if (!forzar && cambios && !confirm('Tienes cambios sin guardar. ¿Descartarlos?')) return;
+  modal.classList.remove('active');
+  modal.setAttribute('aria-hidden', 'true');
+  document.body.style.overflow = '';
+  if (/^#(nuevo|editar)=/.test(location.hash)) history.replaceState(null, '', '#' + E.seccion);
+}
+
+modal.addEventListener('click', e => { if (e.target === modal || e.target.closest('[data-cerrar]')) cerrarModal(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') cerrarModal(); });
+
+form.addEventListener('submit', async e => {
+  e.preventDefault();
+  if (subiendo > 0 || !validar(form)) return;
+  const { s, r } = modalCtx;
+  const datos = leerCampos(form, s.campos);
+  btnGuardar.disabled = true;
+  btnGuardar.innerHTML = '<span class="spinner"></span>Guardando…';
+  const consulta = r
+    ? sb.from(s.tabla).update(datos).eq('id', r.id).select().single()
+    : sb.from(s.tabla).insert({ ...datos, area: E.area }).select().single();
+  const { data, error } = await consulta;
+  btnGuardar.disabled = false;
+  btnGuardar.textContent = 'Guardar';
+  if (error) return toast('No se pudo guardar: ' + error.message, { tipo: 'error' });
+
+  if (r) Object.assign(r, data);
+  else E.filas[s.id].push(data);
+  ordenar(s);
+  cerrarModal(true);
+  E.filtro = 'todas';
+  pintarSeccion();
+  pintarNav();
+  reemplazarFila(s, data, true);
+  toast(r ? 'Cambios guardados' : `${s.singular[0].toUpperCase() + s.singular.slice(1)} publicad${s.genero}`);
+  refrescarSitio();
 });
 
-document.getElementById('close-modal-evento').addEventListener('click', () => modalEvento.classList.remove('active'));
-document.getElementById('cancel-evento').addEventListener('click', () => modalEvento.classList.remove('active'));
-
-window.editEvento = (index) => {
-  const e = currentData.calendario[index];
-  document.getElementById('evento-id').value = index;
-  document.getElementById('evento-titulo').value = e.titulo;
-  document.getElementById('evento-fecha').value = e.fecha;
-  document.getElementById('evento-desc').value = e.descripcion ?? '';
-  
-  document.getElementById('modal-evento-title').textContent = 'Editar Evento';
-  modalEvento.classList.add('active');
-};
-
-window.deleteEvento = async (index) => {
-  if(confirm("¿Estás seguro de eliminar este evento?")) {
-    const originalCalendario = [...(currentData.calendario || [])];
-    currentData.calendario.splice(index, 1);
-    const success = await saveData();
-    if (success) {
-      renderEventosList();
-    } else {
-      currentData.calendario = originalCalendario;
-    }
-  }
-};
-
-formEvento.addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const idStr = document.getElementById('evento-id').value;
-  const newEvento = {
-    titulo: document.getElementById('evento-titulo').value,
-    fecha: document.getElementById('evento-fecha').value,
-    descripcion: document.getElementById('evento-desc').value,
-    id: Date.now()
-  };
-
-  if(!currentData.calendario) currentData.calendario = [];
-
-  if (idStr !== '') {
-    const index = parseInt(idStr);
-    newEvento.id = currentData.calendario[index].id;
-    currentData.calendario[index] = newEvento;
-  } else {
-    currentData.calendario.push(newEvento);
-  }
-
-  const btn = e.target.querySelector('button[type="submit"]');
-  btn.textContent = 'Guardando...';
-  btn.disabled = true;
-
-  if (await saveData()) {
-    modalEvento.classList.remove('active');
-    renderEventosList();
-  }
-  
-  btn.textContent = 'Guardar';
-  btn.disabled = false;
-});
-
-// ─── LÓGICA MODAL RECURSOS ──────────────────────────────────────────────────
-let editingRecursoIndex = -1;
-window.editRecurso = (index) => {
-  if (currentRole === 'pfc') return; // PFC has no recursos tab
-  editingRecursoIndex = index;
-  const items = currentRole === 'personeria' ? currentData.documentos : currentData.informes;
-  const item = items[index];
-  const urlProp = currentRole === 'personeria' ? 'url' : 'archivo_url';
-  
-  document.getElementById('recurso-url').value = item[urlProp] || '';
-  document.getElementById('recurso-file').value = '';
-  document.getElementById('modal-recurso').classList.add('active');
-};
-
-document.getElementById('form-recurso').addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const btn = document.getElementById('btn-save-recurso');
-  const originalText = btn.textContent;
-  btn.disabled = true;
-  btn.textContent = 'Guardando...';
-
-  try {
-    const urlInput = document.getElementById('recurso-url').value;
-    const fileInput = document.getElementById('recurso-file').files[0];
-    let finalUrl = urlInput;
-
-    if (fileInput) {
-      const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
-      if (fileInput.size > MAX_FILE_SIZE) {
-        alert("El archivo excede el tamaño límite de 5 MB.");
-        btn.disabled = false;
-        btn.textContent = originalText;
-        return;
-      }
-      const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'];
-      if (!allowedTypes.includes(fileInput.type)) {
-        alert("Formato de archivo inválido. Solo se admiten PDFs e imágenes (JPG, PNG, WEBP).");
-        btn.disabled = false;
-        btn.textContent = originalText;
-        return;
-      }
-
-      btn.textContent = 'Subiendo Archivo...';
-      const fileRef = ref(storage, `recursos/${currentRole}/${Date.now()}_${fileInput.name}`);
-      const snapshot = await uploadBytes(fileRef, fileInput);
-      finalUrl = await getDownloadURL(snapshot.ref);
-    }
-
-    const fieldName = currentRole === 'personeria' ? 'documentos' : 'informes';
-    const urlProp = currentRole === 'personeria' ? 'url' : 'archivo_url';
-
-    const originalUrl = currentData[fieldName][editingRecursoIndex][urlProp];
-    currentData[fieldName][editingRecursoIndex][urlProp] = finalUrl;
-
-    const success = await saveData();
-    if (success) {
-      renderRecursos();
-      document.getElementById('modal-recurso').classList.remove('active');
-    } else {
-      currentData[fieldName][editingRecursoIndex][urlProp] = originalUrl;
-    }
-  } catch (error) {
-    console.error("Error saving recurso", error);
-    alert("Hubo un error al guardar: " + error.message);
-  } finally {
+// ─── SEMÁFORO ─────────────────────────────────────────────────────────────────
+function pintarSemaforo() {
+  const s = E.semaforo || { verde: [], amarillo: [], rojo: [] };
+  const col = (k, titulo, color) => `<div class="form-group"><div class="sem-titulo" style="--c:${color}">${titulo}</div>
+    <textarea name="${k}" rows="7" placeholder="Un elemento por línea…">${esc((s[k] || []).join('\n'))}</textarea></div>`;
+  main.innerHTML = `
+    <section class="seccion">
+      <div class="page-header"><div>
+        <h1 class="page-title">Semáforo institucional</h1>
+        <p class="page-sub">${s.actualizado ? `Última actualización: ${fmtFecha(s.actualizado)}` : 'Sin actualizar todavía'}</p>
+      </div></div>
+      <div class="dashboard-info-box">Escribe un elemento por línea. Al guardar, se publica de inmediato en la página de Contraloría.</div>
+      <form class="panel" id="form-sem">
+        <div class="sem-grid">${col('verde', 'Está bien', '#27AE60')}${col('amarillo', 'Se puede mejorar', '#F39C12')}${col('rojo', 'Necesita atención', '#E74C3C')}</div>
+        <div class="panel-actions"><button class="btn-primary btn-auto" type="submit">Guardar semáforo</button></div>
+      </form>
+    </section>`;
+  $('#form-sem').addEventListener('submit', async e => {
+    e.preventDefault();
+    const btn = e.target.querySelector('button[type=submit]');
+    const lista = k => e.target.querySelector(`[name=${k}]`).value.split('\n').map(x => x.trim()).filter(Boolean);
+    const fila = { area: E.area, verde: lista('verde'), amarillo: lista('amarillo'), rojo: lista('rojo'), actualizado: hoy() };
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span>Guardando…';
+    const { error } = await sb.from('semaforo').upsert(fila);
     btn.disabled = false;
-    btn.textContent = originalText;
-  }
-});
+    btn.textContent = 'Guardar semáforo';
+    if (error) return toast('No se pudo guardar: ' + error.message, { tipo: 'error' });
+    E.semaforo = fila;
+    main.querySelector('.page-sub').textContent = `Última actualización: ${fmtFecha(fila.actualizado)}`;
+    toast('Semáforo publicado');
+    refrescarSitio();
+  });
+}
 
-document.getElementById('btn-close-recurso').addEventListener('click', () => {
-  document.getElementById('modal-recurso').classList.remove('active');
-});
+// ─── PERFIL ───────────────────────────────────────────────────────────────────
+function camposPerfil() {
+  const c = [
+    { k: 'nombre', l: 'Nombre del representante', req: true },
+    { k: 'cargo', l: 'Cargo' },
+    { k: 'slogan', l: 'Eslogan' },
+    { k: 'objetivo', l: 'Objetivo de la página', t: 'textarea', filas: 4 },
+    { k: 'whatsapp', l: 'WhatsApp', ph: '300 123 4567' }
+  ];
+  if (E.area === 'contraloria') c.push({ k: 'instagram', l: 'Instagram (sin @)' });
+  c.push({ k: 'buzon_url', l: 'Enlace del buzón (Formspree)', t: 'url', hint: 'A dónde llegan los mensajes del buzón.' });
+  if (E.area === 'contraloria') c.push({ k: 'equipo', l: 'Equipo', t: 'lista', hint: 'Una persona por línea: Nombre — Rol. La primera es la contralora.' });
+  return c;
+}
+
+function pintarPerfil() {
+  const p = { ...E.perfil, equipo: (E.perfil.equipo || []).map(m => `${m.nombre} — ${m.rol}`) };
+  const campos = camposPerfil();
+  main.innerHTML = `
+    <section class="seccion">
+      <div class="page-header"><div>
+        <h1 class="page-title">Perfil</h1>
+        <p class="page-sub">Lo que se muestra en el encabezado y el pie de ${esc(AREAS[E.area].nombre)}.</p>
+      </div></div>
+      <form class="panel" id="form-perfil" novalidate>
+        ${campos.map(c => campoHTML(c, p[c.k])).join('')}
+        <div class="panel-actions"><button class="btn-primary btn-auto" type="submit">Guardar perfil</button></div>
+      </form>
+    </section>`;
+  $('#form-perfil').addEventListener('submit', async e => {
+    e.preventDefault();
+    if (!validar(e.target)) return;
+    const btn = e.target.querySelector('button[type=submit]');
+    const datos = leerCampos(e.target, campos);
+    if (datos.equipo) {
+      datos.equipo = datos.equipo.map(l => {
+        const [nombre, rol = 'Equipo'] = l.split(/\s+[—–-]\s+/);
+        return { nombre: nombre.trim(), rol: rol.trim() };
+      });
+    }
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span>Guardando…';
+    const { data, error } = await sb.from('areas').update({ ...datos, updated_at: new Date().toISOString() }).eq('id', E.area).select().single();
+    btn.disabled = false;
+    btn.textContent = 'Guardar perfil';
+    if (error) return toast('No se pudo guardar: ' + error.message, { tipo: 'error' });
+    E.perfil = data;
+    toast('Perfil actualizado');
+    refrescarSitio();
+  });
+}

@@ -1,0 +1,395 @@
+/* Gobierno Escolar — capa de movimiento y modo admin, compartida por las 3 áreas.
+   No cambia el estilo de cada página: solo añade transiciones, esqueletos de carga
+   y los controles de admin. Un solo easing y 3 duraciones (120/200/320 ms). */
+
+:root {
+  --ui-ease: cubic-bezier(0.2, 0, 0, 1);
+  --ui-d1: 120ms;
+  --ui-d2: 200ms;
+  --ui-d3: 320ms;
+
+  --ui-accent: #C4688A;
+  --ui-skel: rgba(26, 18, 20, 0.07);
+  --ui-surface: #FFFFFF;
+  --ui-text: #1A1214;
+  --ui-text-2: #5A404A;
+  --ui-line: rgba(26, 18, 20, 0.1);
+  --ui-inverse-bg: #1A1214;
+  --ui-inverse-fg: #FFFFFF;
+}
+
+body[data-area="contraloria"] {
+  --ui-accent: #C0392B;
+  --ui-skel: rgba(26, 22, 20, 0.07);
+  --ui-text: #1A1614;
+  --ui-text-2: #5A4F4B;
+  --ui-inverse-bg: #1A1614;
+}
+
+body[data-area="pfc"] {
+  --ui-accent: #E0503F;
+  --ui-skel: rgba(255, 255, 255, 0.07);
+  --ui-surface: #141414;
+  --ui-text: #F8F8F8;
+  --ui-text-2: #CCCCCC;
+  --ui-line: rgba(255, 255, 255, 0.1);
+  --ui-inverse-bg: #F8F8F8;
+  --ui-inverse-fg: #0A0A0A;
+}
+
+/* ─── Navegación entre páginas: fundido suave (Chrome/Edge/Safari 18) ─────── */
+@view-transition { navigation: auto; }
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: var(--ui-d2);
+  animation-timing-function: var(--ui-ease);
+}
+
+html { -webkit-tap-highlight-color: transparent; }
+section[id] { scroll-margin-top: 84px; }
+
+@media (prefers-reduced-motion: no-preference) {
+  html { scroll-behavior: smooth; }
+}
+
+/* ─── Entrada escalonada del contenido ─────────────────────────────────────── */
+@keyframes ui-rise {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: none; }
+}
+
+.ui-in {
+  animation: ui-rise var(--ui-d3) var(--ui-ease) both;
+  animation-delay: calc(var(--i, 0) * 40ms);
+}
+
+.hero-stat-num { transition: opacity var(--ui-d2) var(--ui-ease); }
+
+/* ─── Imágenes: aparecen con fundido cuando terminan de cargar ─────────────── */
+html.ui-js .noticia-img img,
+html.ui-js .actividad-img img {
+  opacity: 0;
+  transition: opacity var(--ui-d3) var(--ui-ease), transform var(--ui-d3) var(--ui-ease);
+}
+
+html.ui-js .noticia-img img.ui-ok,
+html.ui-js .actividad-img img.ui-ok { opacity: 1; }
+html.ui-js .noticia-img img.ui-logo.ui-ok,
+html.ui-js .actividad-img img.ui-logo.ui-ok { opacity: 0.7; }
+
+.noticia-img, .actividad-img { position: relative; overflow: hidden; }
+
+@media (hover: hover) {
+  .noticia-card:hover .noticia-img img.ui-foto,
+  .actividad-card:hover .actividad-img img.ui-foto { transform: scale(1.03); }
+}
+
+/* Botones: respuesta táctil al presionar. */
+.btn-enviar, .btn-descargar, .filter-btn, .cal-nav, .rep-btn, .cta-btn, .btn-save-sem, .btn-edit-sem {
+  transition-property: background, color, border-color, box-shadow, transform, opacity;
+  transition-duration: var(--ui-d2);
+  transition-timing-function: var(--ui-ease);
+}
+
+.btn-enviar:active, .btn-descargar:active, .filter-btn:active, .cal-nav:active,
+.rep-btn:active, .cta-btn:active, .btn-save-sem:active, .btn-edit-sem:active {
+  transform: scale(0.97);
+}
+
+/* ─── Esqueletos de carga ──────────────────────────────────────────────────── */
+@keyframes ui-pulse {
+  0%, 100% { opacity: 0.55; }
+  50% { opacity: 1; }
+}
+
+.ui-skel {
+  display: block;
+  background: var(--ui-skel);
+  border-radius: 6px;
+  animation: ui-pulse 1.2s ease-in-out infinite;
+}
+
+.ui-skel-card { pointer-events: none; }
+.ui-skel-card:hover { transform: none !important; box-shadow: none !important; }
+.ui-skel-card .noticia-img, .ui-skel-card .actividad-img { background: var(--ui-skel) !important; animation: ui-pulse 1.2s ease-in-out infinite; }
+.ui-skel-line { height: 12px; margin: 8px 0; }
+.ui-skel-line.lg { height: 18px; }
+.ui-skel-row { display: flex; gap: 14px; align-items: center; padding: 12px 0; }
+.ui-skel-row .ui-skel-badge { width: 48px; height: 48px; border-radius: 12px; flex: none; margin: 0; }
+.ui-skel-row > div { flex: 1; }
+
+.ui-error {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 3rem 1rem;
+  color: var(--ui-text-2);
+  font-size: 14px;
+}
+
+.ui-error button {
+  display: block;
+  margin: 12px auto 0;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 8px 16px;
+  border-radius: 8px;
+  border: 1px solid var(--ui-line);
+  background: transparent;
+  color: var(--ui-text);
+  cursor: pointer;
+}
+
+/* ─── Toast ────────────────────────────────────────────────────────────────── */
+.ui-toasts {
+  position: fixed;
+  z-index: 1100;
+  left: 50%;
+  bottom: calc(16px + env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: min(380px, calc(100vw - 32px));
+  pointer-events: none;
+}
+
+@media (min-width: 769px) {
+  .ui-toasts { left: auto; right: 16px; transform: none; }
+}
+
+.ui-toast {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: var(--ui-inverse-bg);
+  color: var(--ui-inverse-fg);
+  font: 600 13px/1.4 'Plus Jakarta Sans', system-ui, sans-serif;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+  pointer-events: auto;
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity var(--ui-d2) var(--ui-ease), transform var(--ui-d2) var(--ui-ease);
+}
+
+.ui-toast.abierto { opacity: 1; transform: none; }
+.ui-toast.error { background: #B42318; color: #fff; }
+
+.ui-toast button {
+  margin-left: auto;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+  padding: 4px 2px;
+  flex: none;
+}
+
+/* ─── Modo admin en las páginas públicas ───────────────────────────────────── */
+.ui-admin-bar {
+  position: fixed;
+  z-index: 1000;
+  left: 16px;
+  bottom: calc(16px + env(safe-area-inset-bottom));
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 5px 5px 5px 14px;
+  border-radius: 999px;
+  background: var(--ui-inverse-bg);
+  color: var(--ui-inverse-fg);
+  font: 600 12px/1 'Plus Jakarta Sans', system-ui, sans-serif;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+  animation: ui-rise var(--ui-d3) var(--ui-ease) both;
+}
+
+.ui-admin-bar .punto {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #22C55E;
+  margin-right: 6px;
+}
+
+.ui-admin-bar .etiqueta { margin-right: 6px; }
+
+.ui-admin-bar a, .ui-admin-bar button {
+  color: inherit;
+  text-decoration: none;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  padding: 9px 11px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background var(--ui-d1) var(--ui-ease);
+}
+
+.ui-admin-bar a:hover, .ui-admin-bar button:hover { background: rgba(127, 127, 127, 0.22); }
+
+/* Acciones sobre una foto existente (aparecen al pasar el mouse) */
+.ui-foto-acciones {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  display: flex;
+  gap: 6px;
+  z-index: 2;
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity var(--ui-d2) var(--ui-ease), transform var(--ui-d2) var(--ui-ease);
+}
+
+.noticia-card:hover .ui-foto-acciones,
+.actividad-card:hover .ui-foto-acciones,
+.ui-foto-acciones:focus-within { opacity: 1; transform: none; }
+
+@media (hover: none) {
+  .ui-foto-acciones { opacity: 1; transform: none; }
+}
+
+.ui-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 0;
+  background: rgba(10, 10, 10, 0.78);
+  color: #fff;
+  font: 600 12px/1 'Plus Jakarta Sans', system-ui, sans-serif;
+  text-decoration: none;
+  cursor: pointer;
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+  transition: background var(--ui-d1) var(--ui-ease), transform var(--ui-d1) var(--ui-ease);
+}
+
+.ui-chip:hover { background: rgba(10, 10, 10, 0.92); }
+.ui-chip:active { transform: scale(0.96); }
+.ui-chip svg { width: 14px; height: 14px; }
+
+.ui-editar-link {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 2;
+  opacity: 0;
+  transition: opacity var(--ui-d2) var(--ui-ease);
+}
+
+.noticia-card:hover .ui-editar-link,
+.actividad-card:hover .ui-editar-link,
+.ui-editar-link:focus-visible { opacity: 1; }
+
+@media (hover: none) {
+  .ui-editar-link { opacity: 1; }
+}
+
+/* Tarjeta sin foto: botón grande para asociar una */
+.ui-asociar {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 2px dashed transparent;
+  border-radius: inherit;
+  background: transparent;
+  color: var(--ui-accent);
+  font: 600 13px/1.2 'Plus Jakarta Sans', system-ui, sans-serif;
+  cursor: pointer;
+  transition: background var(--ui-d2) var(--ui-ease), border-color var(--ui-d2) var(--ui-ease);
+}
+
+.ui-asociar span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 14px;
+  border-radius: 999px;
+  background: var(--ui-surface);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.14);
+  transition: transform var(--ui-d2) var(--ui-ease);
+}
+
+.ui-asociar span svg { width: 16px; height: 16px; }
+.ui-asociar small { font-size: 11px; font-weight: 500; opacity: 0.8; }
+.ui-asociar:hover, .ui-soltar .ui-asociar {
+  background: color-mix(in srgb, var(--ui-accent) 8%, transparent);
+  border-color: color-mix(in srgb, var(--ui-accent) 45%, transparent);
+}
+.ui-asociar:hover span { transform: translateY(-1px); }
+
+.ui-soltar { outline: 2px dashed var(--ui-accent); outline-offset: -2px; }
+
+/* Subiendo… */
+.ui-subiendo {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: color-mix(in srgb, var(--ui-surface) 80%, transparent);
+  color: var(--ui-text);
+  font: 600 13px/1 'Plus Jakarta Sans', system-ui, sans-serif;
+  animation: ui-rise var(--ui-d2) var(--ui-ease) both;
+}
+
+@keyframes ui-spin { to { transform: rotate(360deg); } }
+
+.ui-spinner {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  animation: ui-spin 700ms linear infinite;
+  flex: none;
+}
+
+/* Tarjeta "＋ Nueva …" al inicio de una grilla */
+.ui-nueva {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 220px;
+  border-radius: 20px;
+  border: 2px dashed color-mix(in srgb, var(--ui-accent) 35%, transparent);
+  color: var(--ui-accent);
+  font: 600 14px/1.2 'Plus Jakarta Sans', system-ui, sans-serif;
+  text-decoration: none;
+  transition: background var(--ui-d2) var(--ui-ease), border-color var(--ui-d2) var(--ui-ease);
+}
+
+.ui-nueva:hover { background: color-mix(in srgb, var(--ui-accent) 6%, transparent); border-color: var(--ui-accent); }
+.ui-nueva svg { width: 22px; height: 22px; }
+
+/* El editor del semáforo solo existe para la contralora con sesión. */
+body:not(.es-admin) .sem-edit-bar,
+body:not(.es-admin) .sem-edit-panel { display: none !important; }
+
+.sem-edit-panel { animation: ui-rise var(--ui-d3) var(--ui-ease) both; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  ::view-transition-old(root), ::view-transition-new(root) { animation: none; }
+}

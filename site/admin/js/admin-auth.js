@@ -1,50 +1,47 @@
-import { auth } from '../../js/firebase-config.js';
-import { signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
+import { sb, areaDelAdmin } from '../../js/supabase.js';
 
-// Credenciales fijas para el acceso como fallback (¡se recomienda configurar Firebase Auth!)
-const CREDENTIALS = {
-  'personeria@auth.com': 'SR20KDET',
-  'contraloria@auth.com': 'SR20KDET',
-  'pfc@auth.com': 'SR20KDET'
-};
-
-const loginForm = document.getElementById('login-form');
+const form = document.getElementById('login-form');
+const box = document.getElementById('login-box');
 const errorMsg = document.getElementById('error-message');
-const loginBtn = document.getElementById('login-btn');
+const btn = document.getElementById('login-btn');
+const pass = document.getElementById('password');
 
-// Redirigir si ya está logueado en LocalStorage
-if (localStorage.getItem('adminUser')) {
-  window.location.href = 'dashboard';
+// Si ya hay sesión de admin, directo al panel.
+areaDelAdmin().then(area => { if (area) location.replace('/admin/dashboard'); });
+
+document.getElementById('pass-toggle').addEventListener('click', e => {
+  const ver = pass.type === 'password';
+  pass.type = ver ? 'text' : 'password';
+  e.currentTarget.textContent = ver ? 'Ocultar' : 'Ver';
+  e.currentTarget.setAttribute('aria-label', ver ? 'Ocultar contraseña' : 'Mostrar contraseña');
+});
+
+function fallar(mensaje) {
+  errorMsg.textContent = mensaje;
+  box.classList.remove('sacudir');
+  void box.offsetWidth;
+  box.classList.add('sacudir');
+  btn.disabled = false;
+  btn.textContent = 'Iniciar sesión';
 }
 
-if (loginForm) {
-  loginForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const email = document.getElementById('email').value.toLowerCase();
-    const password = document.getElementById('password').value;
-    
-    loginBtn.disabled = true;
-    loginBtn.textContent = 'Verificando...';
-    errorMsg.textContent = '';
-    
-    try {
-      // Intentar iniciar sesión usando Firebase Auth
-      await signInWithEmailAndPassword(auth, email, password);
-      console.log("Sesión iniciada con Firebase Auth");
-      localStorage.setItem('adminUser', email);
-      window.location.href = 'dashboard';
-    } catch (firebaseError) {
-      console.warn("Firebase Auth falló, intentando credenciales locales de respaldo:", firebaseError.message);
-      
-      // Fallback a credenciales fijas si Firebase Auth falla (p.ej., si no se han creado las cuentas en consola)
-      if (CREDENTIALS[email] && CREDENTIALS[email] === password) {
-        localStorage.setItem('adminUser', email);
-        window.location.href = 'dashboard';
-      } else {
-        errorMsg.textContent = 'Credenciales inválidas. Verifica el correo y la contraseña.';
-        loginBtn.disabled = false;
-        loginBtn.textContent = 'Iniciar Sesión';
-      }
-    }
-  });
-}
+form.addEventListener('submit', async e => {
+  e.preventDefault();
+  let email = document.getElementById('email').value.trim().toLowerCase();
+  if (!email || !pass.value) return fallar('Escribe tu usuario y contraseña.');
+  if (!email.includes('@')) email += '@auth.com'; // "personeria" → personeria@auth.com
+
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>Verificando…';
+  errorMsg.textContent = '';
+
+  const { error } = await sb.auth.signInWithPassword({ email, password: pass.value });
+  if (error) {
+    return fallar(/invalid/i.test(error.message) ? 'Usuario o contraseña incorrectos.' : 'No se pudo iniciar sesión. Revisa tu conexión.');
+  }
+  if (!(await areaDelAdmin())) {
+    await sb.auth.signOut();
+    return fallar('Esta cuenta no tiene permisos de administrador.');
+  }
+  location.replace('/admin/dashboard');
+});
