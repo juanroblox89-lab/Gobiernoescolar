@@ -476,3 +476,96 @@ body[data-area="pfc"] { --ui-field-bg: #1E1E1E; --ui-field-line: rgba(255, 255, 
   body:not([data-area="personeria"]) .buzon-info > h2 { margin-bottom: 0.9rem; }
   body:not([data-area="personeria"]) .buzon-wrapper > :not(.buzon-info) { order: -2; margin-bottom: 1.25rem; }
 }
+
+/* ─── Áreas en celular: compacto y parejo ────────────────────────────────────
+   Menú de 2 filas cortas (antes 130px pegados arriba), encabezado sin aire de
+   sobra, cifras en 3 columnas iguales y secciones más juntas. */
+/* Tarjeta de foto sin foto: no dejar un recuadro vacío. */
+.hero-img-card:has(img[style*="none"]) { display: none; }
+
+@media (max-width: 720px) {
+  nav { padding: 0 1rem !important; }
+  nav .nav-inner {
+    flex-direction: row !important;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    align-items: center;
+    height: auto !important;
+    padding: 0.55rem 0 0.4rem !important;
+    gap: 0.2rem 0 !important;
+  }
+  nav .nav-logo { font-size: 19px; line-height: 1.2; }
+  nav .nav-links {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    justify-content: flex-start !important;
+    gap: 2px !important;
+    width: calc(100% + 1rem);
+    margin-right: -1rem;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  nav .nav-links::-webkit-scrollbar { display: none; }
+  nav .nav-links li { flex: none; }
+  nav .nav-links a {
+    font-size: 13px !important;
+    padding: 7px 11px !important;
+    white-space: nowrap;
+    opacity: 1 !important;
+  }
+  nav .nav-links li:first-child a { padding-left: 0 !important; }
+  nav .nav-links li:has(.nav-buzon) { margin-left: auto; padding-right: 1rem; }
+
+  section.hero { padding: 1.5rem 1.1rem 1.4rem !important; }
+  /* PFC pone el relleno en .hero-inner, no en .hero. */
+  body[data-area="pfc"] section.hero { padding: 0 !important; }
+  body[data-area="pfc"] .hero-inner { padding: 1.5rem 1.1rem 1.4rem !important; }
+  .hero h1 { font-size: clamp(2rem, 9vw, 2.4rem) !important; line-height: 1.05 !important; margin-bottom: 0.5rem !important; }
+  .hero-tag { margin-bottom: 0.9rem !important; }
+  .hero-inner { gap: 1.25rem !important; }
+  .hero-stats {
+    display: grid !important;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.5rem !important;
+    margin-top: 1.25rem !important;
+    padding-top: 1rem !important;
+  }
+  .hero-stat-num { font-size: 2rem !important; }
+  .hero-stat-label { font-size: 10.5px !important; letter-spacing: 0.04em !important; line-height: 1.25; }
+
+  .page-wrapper { padding: 1.5rem 1rem !important; }
+  .page-wrapper > section { margin-bottom: 2.25rem !important; }
+  .section-heading { margin-bottom: 1rem !important; }
+  .section-heading h2 { font-size: 1.7rem !important; }
+  footer { margin-top: 1.5rem !important; padding: 1.25rem 1rem !important; }
+}
+
+/* Noticias/actividades sin foto (y sin logo de respaldo): sin recuadro vacío.
+   El admin sí lo ve, porque ahí asocia la foto; el esqueleto de carga también. */
+body:not(.es-admin) :is(.noticia-card, .actividad-card):not(.ui-skel-card)
+  :is(.noticia-img, .actividad-img):not(:has(img:not([style*="none"]))) { display: none !important; }
+
+@media (max-width: 720px) {
+  /* El Buzón (la prioridad) siempre visible: arriba a la derecha, junto al nombre. */
+  nav .nav-inner { position: relative; }
+  nav .nav-links li:has(.nav-buzon) {
+    position: absolute;
+    top: 0.45rem;
+    right: 0;
+    margin: 0;
+    padding: 0;
+  }
+  nav .nav-links a.nav-buzon { padding: 6px 12px !important; }
+
+  /* Portada de Contraloría: 4 propuestas; el resto en "Ver todas →". */
+  .section-heading:has(a[href="/contraloria/propuestas"]) + .props-grid > :nth-child(n+5) { display: none; }
+  .props-grid { grid-template-columns: 1fr !important; gap: 10px !important; }
+  .prop-card { padding: 1.1rem !important; }
+
+  /* Equipo en 2 columnas parejas. */
+  .equipo-grid { grid-template-columns: 1fr 1fr !important; gap: 10px !important; }
+  .eq-card { padding: 1rem 0.75rem !important; }
+
+  .noticias-grid { gap: 12px !important; }
+  .noticia-img { height: 150px !important; }
+}

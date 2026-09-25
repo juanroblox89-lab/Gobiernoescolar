@@ -216,7 +216,7 @@ function renderEquipo() {
   container.innerHTML = equipo.map((m, i) => {
     const esContralora = i === 0;
     const avatarImg = esContralora
-      ? `<img src="/assets/images/logo-cont.png" alt="${esc(m.nombre)}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" onerror="this.style.display='none'">` 
+      ? `<img src="/assets/images/logo-cont.png" alt="${esc(m.nombre)}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" onerror="this.outerHTML='<span>${esc(initials(m.nombre))}</span>'">` 
       : `<span>${esc(initials(m.nombre))}</span>`;
     return `
       <div class="eq-card ${esContralora ? 'contralora' : ''}">
