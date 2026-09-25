@@ -4,4 +4,5 @@ node_modules/
 .DS_Store
 _migracion/
 .env*
-.claude/
+.claude/*
+!.claude/skills/

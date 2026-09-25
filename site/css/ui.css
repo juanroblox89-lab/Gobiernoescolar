@@ -393,3 +393,86 @@ body:not(.es-admin) .sem-edit-panel { display: none !important; }
   }
   ::view-transition-old(root), ::view-transition-new(root) { animation: none; }
 }
+
+/* ─── Buzón: legible y primero en celular (99 % de las visitas) ─────────────
+   Aplica a las 3 áreas; los colores salen de los tokens --ui-* de cada área.
+   En móvil el formulario va antes que la explicación y todo lo decorativo
+   que empuja el formulario hacia abajo se reduce u oculta. */
+body { --ui-field-bg: #FFFFFF; --ui-field-line: rgba(26, 18, 20, 0.22); }
+body[data-area="pfc"] { --ui-field-bg: #1E1E1E; --ui-field-line: rgba(255, 255, 255, 0.22); }
+
+.buzon-form-card .form-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ui-text);
+  margin-bottom: 6px;
+}
+.buzon-form-card .form-input,
+.buzon-form-card .form-select,
+.buzon-form-card .form-textarea {
+  font-size: 16px;               /* 16px evita el zoom automático de iOS */
+  line-height: 1.45;
+  min-height: 48px;
+  padding: 12px 14px;
+  color: var(--ui-text);
+  background: var(--ui-field-bg);
+  border: 1.5px solid var(--ui-field-line);
+}
+.buzon-form-card .form-textarea { min-height: 150px; }
+.buzon-form-card .form-input::placeholder,
+.buzon-form-card .form-textarea::placeholder { color: var(--ui-text-2); opacity: 0.75; }
+.buzon-form-card .form-input:focus,
+.buzon-form-card .form-select:focus,
+.buzon-form-card .form-textarea:focus {
+  border-color: var(--ui-accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ui-accent) 20%, transparent);
+  background: var(--ui-field-bg);
+}
+.buzon-form-card .form-group { margin-bottom: 1rem; }
+.buzon-form-card .form-row { align-items: end; }   /* campos parejos aunque una etiqueta ocupe 2 líneas */
+.buzon-form-card .btn-enviar {
+  min-height: 52px;
+  font-size: 16px;
+  font-weight: 700;
+}
+#form-feedback { font-size: 14px !important; font-weight: 600; }
+
+.buzon-info p,
+.buzon-feature-text { font-size: 15px; line-height: 1.55; color: var(--ui-text-2); }
+.buzon-feature-text { padding-top: 6px; }
+
+/* Logos que no cargaron (el onerror les pone display:none): sin círculos vacíos. */
+.mascota-card:has(img[style*="none"]) { display: none; }
+.buzon-mascotas:not(:has(img:not([style*="none"]))) { display: none; }
+
+/* Cabecera con imagen: siempre legible aunque la foto no cargue. */
+.buzon-hero {
+  height: 150px;
+  margin-bottom: 1.25rem;
+  background: linear-gradient(135deg, var(--ui-accent), color-mix(in srgb, var(--ui-accent) 55%, #000));
+}
+.buzon-hero-overlay { background: linear-gradient(to top, rgba(0, 0, 0, 0.6) 0%, rgba(0, 0, 0, 0.15) 70%); padding: 1.1rem 1.25rem; }
+.buzon-hero-text h2 { font-size: 1.8rem; line-height: 1.05; }
+.buzon-hero-text p { font-size: 15px; color: #FFFFFF; }
+
+@media (max-width: 700px) {
+  .page-wrapper { padding-top: 1rem !important; }
+  .buzon-hero { height: 110px; border-radius: 14px; }
+  .buzon-hero-text h2 { font-size: 1.55rem; }
+  .buzon-wrapper { grid-template-columns: 1fr; gap: 1.25rem; }
+  .buzon-wrapper > :not(.buzon-info) { order: -1; }   /* formulario primero */
+  .buzon-mascotas { display: none; }                  /* círculos decorativos */
+  .buzon-info h2 { font-size: 1.5rem; margin-bottom: 0.5rem; }
+  .buzon-form-card { padding: 1.1rem; border-radius: 14px; }
+  .buzon-form-card .form-row { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .buzon-features { gap: 8px; }
+  .escuchame-section { padding: 1.1rem; margin-top: 1rem; }
+
+  /* Sin cabecera con imagen (Contraloría, PFC): el título sube sobre el
+     formulario y la explicación queda debajo. */
+  body:not([data-area="personeria"]) .buzon-wrapper { gap: 0; }
+  body:not([data-area="personeria"]) .buzon-info { display: contents; }
+  body:not([data-area="personeria"]) .buzon-info > :is(.section-eyebrow, h1, h2) { order: -3; }
+  body:not([data-area="personeria"]) .buzon-info > h2 { margin-bottom: 0.9rem; }
+  body:not([data-area="personeria"]) .buzon-wrapper > :not(.buzon-info) { order: -2; margin-bottom: 1.25rem; }
+}
